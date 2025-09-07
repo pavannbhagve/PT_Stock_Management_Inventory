@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HOD & Engineer Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .message-box {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            color: white;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: opacity 0.5s ease-in-out;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .message-box.show {
+            opacity: 1;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Message Box for Alerts -->
+    <div id="message-box" class="message-box"></div>
+
+    <!-- Login Page -->
+    <div id="login-page" class="w-full max-w-md bg-white p-8 rounded-xl shadow-lg">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Login</h1>
+        <div class="mb-4">
+            <label for="login-username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            <input type="text" id="login-username" placeholder="Enter username" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+        </div>
+        <div class="mb-6">
+            <label for="login-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input type="password" id="login-password" placeholder="Enter password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+        </div>
+        <button id="login-btn" class="w-full px-6 py-3 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-300">Login</button>
+    </div>
+
+    <!-- HOD Dashboard (Initially hidden) -->
+    <div id="hod-dashboard" class="hidden w-full max-w-6xl bg-white p-8 rounded-xl shadow-lg">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">HOD Dashboard</h1>
+            <button id="logout-btn-hod" class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 transition duration-300">Logout</button>
+        </div>
+
+        <!-- Engineer Management Section -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Engineer Management</h2>
+            <div class="flex flex-col sm:flex-row items-start sm:items-end space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
+                <div class="flex-grow w-full">
+                    <label for="engineer-name" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input type="text" id="engineer-name" placeholder="Name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+                <div class="flex-grow w-full">
+                    <label for="engineer-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="engineer-password" placeholder="Password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+                <button id="add-engineer-btn" class="w-full sm:w-auto px-6 py-2 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-300">Add Engineer</button>
+            </div>
+            <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
+                <table id="engineer-table" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Password</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="engineer-tbody" class="bg-white divide-y divide-gray-200">
+                        <!-- Engineers will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Stock Management Section -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Stock Management</h2>
+            <div class="flex flex-col sm:flex-row items-start sm:items-end space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
+                <div class="flex-grow w-full">
+                    <label for="stock-name" class="block text-sm font-medium text-gray-700 mb-1">Stock Name</label>
+                    <input type="text" id="stock-name" placeholder="Stock Name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+                <div class="flex-grow w-full">
+                    <label for="stock-quantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                    <input type="number" id="stock-quantity" placeholder="Quantity" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+                <button id="add-update-stock-btn" class="w-full sm:w-auto px-6 py-2 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-300">Add Stock</button>
+                <button id="set-stock-btn" class="w-full sm:w-auto px-6 py-2 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-300">Set Stock</button>
+            </div>
+            <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
+                <table id="stock-table" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-tbody" class="bg-white divide-y divide-gray-200">
+                        <!-- Stocks will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Stock Request Management Section for HOD -->
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Stock Requests</h2>
+            <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
+                <table id="hod-request-table" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested By</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hod-request-tbody" class="bg-white divide-y divide-gray-200">
+                        <!-- Requests will be populated here for HOD -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Engineer Dashboard (Initially hidden) -->
+    <div id="engineer-dashboard" class="hidden w-full max-w-6xl bg-white p-8 rounded-xl shadow-lg">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Engineer Dashboard</h1>
+            <button id="logout-btn-engineer" class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 transition duration-300">Logout</button>
+        </div>
+        <p class="text-gray-600 mb-6">Logged in as: <span id="engineer-name-display" class="font-medium text-gray-800"></span></p>
+
+        <!-- Stock List Section for Engineer -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Available Stock</h2>
+            <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
+                <table id="engineer-stock-table" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                        </tr>
+                    </thead>
+                    <tbody id="engineer-stock-tbody" class="bg-white divide-y divide-gray-200">
+                        <!-- Stocks will be populated here for the Engineer -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Stock Request Section for Engineer -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Submit Stock Request</h2>
+            <div class="flex flex-col sm:flex-row items-start sm:items-end space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
+                <div class="flex-grow w-full">
+                    <label for="request-stock-name" class="block text-sm font-medium text-gray-700 mb-1">Stock Name</label>
+                    <input type="text" id="request-stock-name" placeholder="Stock Name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+                <div class="flex-grow w-full">
+                    <label for="request-stock-quantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                    <input type="number" id="request-stock-quantity" placeholder="Quantity" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+            </div>
+            <div class="w-full flex justify-end">
+                <button id="submit-request-btn" class="w-full sm:w-auto px-6 py-2 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-300">Submit Request</button>
+            </div>
+            
+            <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200 mt-6">
+                <table id="engineer-request-table" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="engineer-request-tbody" class="bg-white divide-y divide-gray-200">
+                        <!-- Requests will be populated here for the Engineer -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const loginPage = document.getElementById('login-page');
+        const hodDashboard = document.getElementById('hod-dashboard');
+        const engineerDashboard = document.getElementById('engineer-dashboard');
+        const loginUsernameInput = document.getElementById('login-username');
+        const loginPasswordInput = document.getElementById('login-password');
+        const engineerTbody = document.getElementById('engineer-tbody');
+        const stockTbody = document.getElementById('stock-tbody');
+        const hodRequestTbody = document.getElementById('hod-request-tbody');
+        const engineerRequestTbody = document.getElementById('engineer-request-tbody');
+        const engineerStockTbody = document.getElementById('engineer-stock-tbody');
+        const engineerNameDisplay = document.getElementById('engineer-name-display');
+        const messageBox = document.getElementById('message-box');
+        
+        let userRole = null;
+        let userName = null;
+        
+        // Function to show messages
+        function showMessage(message, type = 'success') {
+            messageBox.textContent = message;
+            messageBox.className = `message-box show bg-${type === 'success' ? 'green' : 'red'}-500`;
+            setTimeout(() => {
+                messageBox.className = 'message-box';
+            }, 3000);
+        }
+        
+        // Fetch data from Flask API
+        async function fetchData(endpoint) {
+            try {
+                const response = await fetch(endpoint);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return await response.json();
+            } catch (error) {
+                showMessage('Failed to load data: ' + error.message, 'error');
+                return [];
+            }
+        }
+        
+        // Render HOD Dashboard
+        async function renderHodDashboard() {
+            const engineers = await fetchData('/api/engineers');
+            const stocks = await fetchData('/api/stocks');
+            const requests = await fetchData('/api/requests');
+            
+            engineerTbody.innerHTML = '';
+            engineers.forEach(eng => {
+                const row = `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${eng.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${eng.password}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick="deleteEngineer(${eng.id})" class="text-red-600 hover:text-red-900 font-medium">Delete</button>
+                        </td>
+                    </tr>
+                `;
+                engineerTbody.innerHTML += row;
+            });
+            
+            stockTbody.innerHTML = '';
+            stocks.forEach(stock => {
+                const row = `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${stock.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${stock.quantity}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick="deleteStock(${stock.id})" class="text-red-600 hover:text-red-900 font-medium">Delete</button>
+                        </td>
+                    </tr>
+                `;
+                stockTbody.innerHTML += row;
+            });
+
+            hodRequestTbody.innerHTML = '';
+            requests.forEach(req => {
+                let actionButtons = '';
+                if (req.status === 'Pending') {
+                    actionButtons = `
+                        <button onclick="updateRequestStatus(${req.id}, 'Accepted')" class="text-green-600 hover:text-green-900 font-medium mr-2">Accept</button>
+                        <button onclick="updateRequestStatus(${req.id}, 'Denied')" class="text-red-600 hover:text-red-900 font-medium">Deny</button>
+                    `;
+                } else if (req.status === 'Accepted') {
+                    actionButtons = `Awaiting Engineer Confirmation`;
+                } else if (req.status === 'Completed') {
+                    actionButtons = `Completed`;
+                } else if (req.status === 'Denied') {
+                    actionButtons = `Denied`;
+                }
+                const row = `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${req.stock_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${req.quantity}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${req.requester_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${req.status}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            ${actionButtons}
+                        </td>
+                    </tr>
+                `;
+                hodRequestTbody.innerHTML += row;
+            });
+        }
+        
+        // Render Engineer Dashboard
+        async function renderEngineerDashboard() {
+            engineerNameDisplay.textContent = userName;
+            const stocks = await fetchData('/api/stocks');
+            const requests = await fetchData('/api/requests');
+            
+            engineerStockTbody.innerHTML = '';
+            stocks.forEach(stock => {
+                const rowClass = stock.quantity === 0 ? 'bg-red-200' : 'bg-white';
+                const row = `
+                    <tr class="${rowClass}">
+                        <td class="px-6 py-4 whitespace-nowrap">${stock.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${stock.quantity}</td>
+                    </tr>
+                `;
+                engineerStockTbody.innerHTML += row;
+            });
+
+            engineerRequestTbody.innerHTML = '';
+            requests.filter(req => req.requester_name === userName).forEach(req => {
+                let actionButtons = '';
+                if (req.status === 'Accepted') {
+                    actionButtons = `<button onclick="markAsReceived(${req.id})" class="text-green-600 hover:text-green-900 font-medium">Mark as Received</button>`;
+                }
+                const row = `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${req.stock_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${req.quantity}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${req.status}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">${actionButtons}</td>
+                    </tr>
+                `;
+                engineerRequestTbody.innerHTML += row;
+            });
+        }
+
+        // Login button handler
+        document.getElementById('login-btn').addEventListener('click', async () => {
+            const username = loginUsernameInput.value;
+            const password = loginPasswordInput.value;
+            
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const result = await response.json();
+            
+            if (result.role === 'HOD') {
+                userRole = 'HOD';
+                loginPage.classList.add('hidden');
+                hodDashboard.classList.remove('hidden');
+                renderHodDashboard();
+                showMessage('Logged in as HOD!');
+            } else if (result.role === 'Engineer') {
+                userRole = 'Engineer';
+                userName = result.name;
+                loginPage.classList.add('hidden');
+                engineerDashboard.classList.remove('hidden');
+                renderEngineerDashboard();
+                showMessage('Logged in as Engineer!');
+            } else {
+                showMessage(result.message, 'error');
+            }
+        });
+        
+        // Logout handlers
+        document.getElementById('logout-btn-hod').addEventListener('click', () => {
+            userRole = null;
+            userName = null;
+            hodDashboard.classList.add('hidden');
+            loginPage.classList.remove('hidden');
+            showMessage('Logged out successfully.');
+        });
+        document.getElementById('logout-btn-engineer').addEventListener('click', () => {
+            userRole = null;
+            userName = null;
+            engineerDashboard.classList.add('hidden');
+            loginPage.classList.remove('hidden');
+            showMessage('Logged out successfully.');
+        });
+        
+        // HOD Dashboard actions
+        window.deleteEngineer = async (id) => {
+            await fetch(`/api/engineers/${id}`, { method: 'DELETE' });
+            renderHodDashboard(); // Re-render the dashboard
+            showMessage('Engineer deleted successfully.');
+        };
+        
+        document.getElementById('add-engineer-btn').addEventListener('click', async () => {
+            const name = document.getElementById('engineer-name').value;
+            const password = document.getElementById('engineer-password').value;
+            if (name && password) {
+                await fetch('/api/engineers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, password })
+                });
+                document.getElementById('engineer-name').value = '';
+                document.getElementById('engineer-password').value = '';
+                renderHodDashboard();
+                showMessage('Engineer added successfully!');
+            } else {
+                showMessage('Please fill out all fields.', 'error');
+            }
+        });
+        
+        document.getElementById('add-update-stock-btn').addEventListener('click', async () => {
+            const name = document.getElementById('stock-name').value;
+            const quantity = parseInt(document.getElementById('stock-quantity').value, 10);
+            if (name && !isNaN(quantity)) {
+                await fetch('/api/stocks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, quantity })
+                });
+                document.getElementById('stock-name').value = '';
+                document.getElementById('stock-quantity').value = '';
+                renderHodDashboard();
+                showMessage('Stock added successfully!');
+            } else {
+                showMessage('Please enter valid stock name and quantity.', 'error');
+            }
+        });
+
+        document.getElementById('set-stock-btn').addEventListener('click', async () => {
+            const name = document.getElementById('stock-name').value;
+            const quantity = parseInt(document.getElementById('stock-quantity').value, 10);
+            if (name && !isNaN(quantity)) {
+                await fetch('/api/stocks', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, quantity })
+                });
+                document.getElementById('stock-name').value = '';
+                document.getElementById('stock-quantity').value = '';
+                renderHodDashboard();
+                showMessage('Stock quantity set successfully!');
+            } else {
+                showMessage('Please enter valid stock name and quantity.', 'error');
+            }
+        });
+        
+        window.deleteStock = async (id) => {
+            await fetch(`/api/stocks/${id}`, { method: 'DELETE' });
+            renderHodDashboard();
+            showMessage('Stock deleted successfully.');
+        };
+
+        window.updateRequestStatus = async (id, status) => {
+            await fetch(`/api/requests/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            });
+            renderHodDashboard();
+            renderEngineerDashboard();
+            showMessage(`Request status updated to ${status}.`);
+        };
+        
+        // Engineer Dashboard actions
+        document.getElementById('submit-request-btn').addEventListener('click', async () => {
+            const name = document.getElementById('request-stock-name').value;
+            const quantity = parseInt(document.getElementById('request-stock-quantity').value, 10);
+            
+            if (name && !isNaN(quantity)) {
+                await fetch('/api/requests', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stock_name: name, quantity, requester_name: userName })
+                });
+                document.getElementById('request-stock-name').value = '';
+                document.getElementById('request-stock-quantity').value = '';
+                renderEngineerDashboard();
+                showMessage('Request submitted successfully!');
+            } else {
+                showMessage('Please enter valid stock name and quantity.', 'error');
+            }
+        });
+
+        window.markAsReceived = async (id) => {
+            const response = await fetch(`/api/requests/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'Received' })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                renderEngineerDashboard();
+                renderHodDashboard();
+                showMessage(result.message);
+            } else {
+                showMessage(result.message, 'error');
+            }
+        };
+
+    </script>
+
+</body>
+</html>
