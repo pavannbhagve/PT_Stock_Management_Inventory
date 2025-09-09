@@ -381,8 +381,8 @@
         
         // HOD Credentials
         const hodCredentials = {
-            username: 'hod',
-            password: 'password123'
+            username: 'PTESPL',
+            password: 'ptespl@123'
         };
 
         // Engineer Credentials (now in an array)
@@ -556,7 +556,7 @@
                     const sendTimeElapsed = now - new Date(request.acceptedTimestamp);
                     if (sendTimeElapsed >= sendAlertThresholds.mail) {
                          // Send email alert logic (simulated)
-                         console.log(`Sending email to support@ptespl.com for un-sent request: ${request.id}`);
+                         console.log(`Sending email to service.aur@ptespl.com for un-sent request: ${request.id}`);
                          // This is where you'd integrate an actual mail sending service
                     }
                     if (sendTimeElapsed >= sendAlertThresholds.red) {
@@ -701,12 +701,22 @@
         function editStock(id) {
             const stock = stockList.find(s => s.id === id);
             if (stock) {
-                const newQuantity = prompt(`Enter new quantity for ${stock.name}:`);
+                const newName = prompt(`Enter new name for "${stock.name}":`);
+                if (newName !== null && newName.trim() !== '') {
+                    stock.name = newName.trim();
+                }
+
+                const newQuantity = prompt(`Enter new quantity for "${stock.name}":`);
                 if (newQuantity !== null && !isNaN(newQuantity) && newQuantity.trim() !== '') {
                     stock.quantity = parseInt(newQuantity);
+                }
+
+                if ((newName !== null && newName.trim() !== '') || (newQuantity !== null && !isNaN(newQuantity) && newQuantity.trim() !== '')) {
                     stock.timestamp = new Date().toLocaleString();
                     renderDashboards();
-                    showModal('Stock Updated', `Quantity for ${stock.name} has been updated.`);
+                    showModal('Stock Updated', `Stock for "${stock.name}" has been updated.`);
+                } else {
+                    showModal('Update Canceled', 'No changes were made.');
                 }
             }
         }
