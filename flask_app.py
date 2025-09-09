@@ -1,238 +1,248 @@
 import os
-import sqlite3
-from flask import Flask, jsonify, request, render_template, redirect, url_for
+from flask import Flask, jsonify, request, render_template
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
 
-# This single file contains all the necessary code and replaces your old flask_app.py and database_db.py.
+# Load environment variables
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL")
+SECRET_KEY = os.getenv("SECRET_KEY", "secret")
 
-# Initialize Flask app
 app = Flask(__name__)
+app.config['SECRET_KEY'] = SECRET_KEY
 
-# Correctly set the database path
-# This ensures the database is created and found in the same directory as the script.
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, 'database.db')
-
+# PostgreSQL connection
 def get_db_connection():
-    """Establishes a connection to the SQLite database."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
 
+# Initialize DB
 def init_db():
-    """Initializes the database and creates tables if they don't exist."""
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Create tables
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS hods (
-            id INTEGER PRIMARY KEY,
-            username TEXT NOT NULL,
+            id SERIAL PRIMARY KEY,
+            username TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL
         )
-    ''')
-    cursor.execute('''
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS engineers (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL,
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
             password TEXT NOT NULL
         )
-    ''')
-    cursor.execute('''
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS stocks (
-            id INTEGER PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             name TEXT NOT NULL UNIQUE,
             quantity INTEGER NOT NULL
         )
-    ''')
-    cursor.execute('''
+    """)
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS requests (
-            id INTEGER PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             stock_name TEXT NOT NULL,
             quantity INTEGER NOT NULL,
             requester_name TEXT NOT NULL,
             status TEXT NOT NULL
         )
-    ''')
+    """)
     
-    # Populate HOD if it doesn't exist
-    cursor.execute('SELECT COUNT(*) FROM hods')
-    if cursor.fetchone()[0] == 0:
+    # Add default HOD if not exists
+    cursor.execute("SELECT * FROM hods WHERE username='HOD'")
+    if cursor.fetchone() is None:
         hashed_password = generate_password_hash('password')
-        cursor.execute("INSERT INTO hods (username, password) VALUES (?, ?)", ('HOD', hashed_password))
+        cursor.execute("INSERT INTO hods (username, password) VALUES (%s, %s)", ('HOD', hashed_password))
     
     conn.commit()
+    cursor.close()
     conn.close()
 
+# --- Routes ---
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+# Login
 @app.route('/api/login', methods=['POST'])
 def login():
-    """Handles user login for HOD and Engineer roles."""
     data = request.json
     username = data.get('username')
     password = data.get('password')
     
     conn = get_db_connection()
+    cursor = conn.cursor()
     
-    # Check for HOD login
-    hod = conn.execute("SELECT * FROM hods WHERE username = ?", (username,)).fetchone()
+    # HOD login
+    cursor.execute("SELECT * FROM hods WHERE username=%s", (username,))
+    hod = cursor.fetchone()
     if hod and check_password_hash(hod['password'], password):
+        cursor.close()
         conn.close()
-        return jsonify({'role': 'HOD', 'message': 'HOD login successful'})
-        
-    # Check for Engineer login
-    engineer = conn.execute("SELECT * FROM engineers WHERE name = ?", (username,)).fetchone()
-    if engineer and check_password_hash(engineer['password'], password):
-        conn.close()
-        return jsonify({'role': 'Engineer', 'name': engineer['name'], 'message': 'Engineer login successful'})
+        return jsonify({'role':'HOD','message':'HOD login successful'})
     
-    conn.close()
-    return jsonify({'message': 'Invalid credentials'}), 401
-
-# HOD - Engineer Management
-@app.route('/api/engineers', methods=['GET', 'POST'])
-def manage_engineers():
-    conn = get_db_connection()
-    if request.method == 'GET':
-        engineers = conn.execute("SELECT * FROM engineers").fetchall()
+    # Engineer login
+    cursor.execute("SELECT * FROM engineers WHERE name=%s", (username,))
+    eng = cursor.fetchone()
+    if eng and check_password_hash(eng['password'], password):
+        cursor.close()
         conn.close()
-        return jsonify([dict(row) for row in engineers])
-    elif request.method == 'POST':
+        return jsonify({'role':'Engineer','name': eng['name'], 'message':'Engineer login successful'})
+    
+    cursor.close()
+    conn.close()
+    return jsonify({'message':'Invalid credentials'}), 401
+
+# Engineer Management
+@app.route('/api/engineers', methods=['GET','POST'])
+def engineers():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    if request.method=='GET':
+        cursor.execute("SELECT id, name FROM engineers")
+        engineers = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return jsonify(engineers)
+    else:
         data = request.json
         name = data.get('name')
-        password = data.get('password')
-        hashed_password = generate_password_hash(password)
-        conn.execute("INSERT INTO engineers (name, password) VALUES (?, ?)", (name, hashed_password))
+        password = generate_password_hash(data.get('password'))
+        cursor.execute("INSERT INTO engineers (name, password) VALUES (%s,%s)", (name,password))
         conn.commit()
+        cursor.close()
         conn.close()
-        return jsonify({'message': 'Engineer added'}), 201
+        return jsonify({'message':'Engineer added'}), 201
 
-@app.route('/api/engineers/<int:engineer_id>', methods=['DELETE'])
-def delete_engineer(engineer_id):
+@app.route('/api/engineers/<int:id>', methods=['DELETE'])
+def delete_engineer(id):
     conn = get_db_connection()
-    conn.execute("DELETE FROM engineers WHERE id = ?", (engineer_id,))
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM engineers WHERE id=%s", (id,))
     conn.commit()
+    cursor.close()
     conn.close()
-    return jsonify({'message': 'Engineer deleted'})
+    return jsonify({'message':'Engineer deleted'})
 
-# HOD - Stock Management
-@app.route('/api/stocks', methods=['GET', 'POST', 'PUT'])
-def manage_stocks():
+# Stock Management
+@app.route('/api/stocks', methods=['GET','POST','PUT'])
+def stocks():
     conn = get_db_connection()
-    if request.method == 'GET':
-        stocks = conn.execute("SELECT * FROM stocks").fetchall()
+    cursor = conn.cursor()
+    
+    if request.method=='GET':
+        cursor.execute("SELECT * FROM stocks")
+        data = cursor.fetchall()
+        cursor.close()
         conn.close()
-        return jsonify([dict(row) for row in stocks])
-    elif request.method == 'POST':
+        return jsonify(data)
+    
+    elif request.method=='POST':  # Add / increase stock
         data = request.json
-        stock_name = data.get('name')
+        name = data.get('name')
         quantity = data.get('quantity')
         
-        existing_stock = conn.execute("SELECT * FROM stocks WHERE name = ?", (stock_name,)).fetchone()
-        
-        if existing_stock:
-            conn.execute("UPDATE stocks SET quantity = quantity + ? WHERE name = ?", (quantity, stock_name))
+        cursor.execute("SELECT * FROM stocks WHERE name=%s", (name,))
+        existing = cursor.fetchone()
+        if existing:
+            cursor.execute("UPDATE stocks SET quantity=quantity+%s WHERE name=%s",(quantity,name))
         else:
-            conn.execute("INSERT INTO stocks (name, quantity) VALUES (?, ?)", (stock_name, quantity))
+            cursor.execute("INSERT INTO stocks (name, quantity) VALUES (%s,%s)", (name, quantity))
         
         conn.commit()
+        cursor.close()
         conn.close()
-        return jsonify({'message': 'Stock updated'}), 201
-    elif request.method == 'PUT':
+        return jsonify({'message':'Stock updated'}), 201
+    
+    elif request.method=='PUT':  # Set stock quantity
         data = request.json
-        stock_name = data.get('name')
+        name = data.get('name')
         quantity = data.get('quantity')
-        
-        existing_stock = conn.execute("SELECT * FROM stocks WHERE name = ?", (stock_name,)).fetchone()
-        if existing_stock:
-            conn.execute("UPDATE stocks SET quantity = ? WHERE name = ?", (quantity, stock_name))
-            conn.commit()
-            conn.close()
-            return jsonify({'message': 'Stock quantity set successfully'}), 200
-        else:
-            conn.close()
-            return jsonify({'message': 'Stock not found'}), 404
-
-@app.route('/api/stocks/<int:stock_id>', methods=['DELETE'])
-def delete_stock(stock_id):
-    conn = get_db_connection()
-    conn.execute("DELETE FROM stocks WHERE id = ?", (stock_id,))
-    conn.commit()
-    conn.close()
-    return jsonify({'message': 'Stock deleted'})
-
-# HOD & Engineer - Request Management
-@app.route('/api/requests', methods=['GET', 'POST'])
-def manage_requests():
-    conn = get_db_connection()
-    if request.method == 'GET':
-        requests_list = conn.execute("SELECT * FROM requests").fetchall()
-        conn.close()
-        return jsonify([dict(row) for row in requests_list])
-    elif request.method == 'POST':
-        data = request.json
-        conn.execute("INSERT INTO requests (stock_name, quantity, requester_name, status) VALUES (?, ?, ?, ?)",
-                      (data['stock_name'], data['quantity'], data['requester_name'], 'Pending'))
+        cursor.execute("UPDATE stocks SET quantity=%s WHERE name=%s", (quantity,name))
         conn.commit()
+        cursor.close()
         conn.close()
-        return jsonify({'message': 'Request submitted'}), 201
+        return jsonify({'message':'Stock quantity set'})
 
-@app.route('/api/requests/<int:request_id>', methods=['PUT'])
-def update_request(request_id):
-    request_data = request.json
-    status = request_data.get('status')
+# Delete stock
+@app.route('/api/stocks/<int:id>', methods=['DELETE'])
+def delete_stock(id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM stocks WHERE id=%s", (id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return jsonify({'message':'Stock deleted'})
+
+# Requests
+@app.route('/api/requests', methods=['GET','POST'])
+def requests_list():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    if request.method=='GET':
+        cursor.execute("SELECT * FROM requests")
+        data = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return jsonify(data)
+    else:
+        data = request.json
+        cursor.execute("INSERT INTO requests (stock_name, quantity, requester_name, status) VALUES (%s,%s,%s,%s)",
+                       (data['stock_name'], data['quantity'], data['requester_name'], 'Pending'))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return jsonify({'message':'Request submitted'}), 201
+
+@app.route('/api/requests/<int:id>', methods=['PUT'])
+def update_request(id):
+    data = request.json
+    status = data.get('status')
     
     conn = get_db_connection()
     cursor = conn.cursor()
-
-    req_to_update = cursor.execute("SELECT * FROM requests WHERE id = ?", (request_id,)).fetchone()
     
-    if req_to_update:
-        if status == 'Received':
-            stock_name = req_to_update['stock_name']
-            requested_quantity = req_to_update['quantity']
-            
-            stock_item = cursor.execute("SELECT * FROM stocks WHERE name = ?", (stock_name,)).fetchone()
-
-            if stock_item:
-                if stock_item['quantity'] >= requested_quantity:
-                    cursor.execute("UPDATE stocks SET quantity = quantity - ? WHERE name = ?", (requested_quantity, stock_name))
-                    cursor.execute("UPDATE requests SET status = ? WHERE id = ?", ('Completed', request_id))
-                    conn.commit()
-                    conn.close()
-                    return jsonify({'message': 'Request marked as completed and stock updated.'}), 200
-                else:
-                    conn.close()
-                    return jsonify({'message': 'Not enough stock to fulfill this request.'}), 400
-            else:
-                conn.close()
-                return jsonify({'message': 'Stock item not found.'}), 404
-        
-        elif status == 'Accepted':
-            cursor.execute("UPDATE requests SET status = ? WHERE id = ?", ('Accepted', request_id))
-            conn.commit()
-            conn.close()
-            return jsonify({'message': 'Request accepted.'}), 200
-        
-        elif status == 'Denied':
-            cursor.execute("UPDATE requests SET status = ? WHERE id = ?", ('Denied', request_id))
-            conn.commit()
-            conn.close()
-            return jsonify({'message': 'Request denied.'}), 200
-        
+    cursor.execute("SELECT * FROM requests WHERE id=%s", (id,))
+    req = cursor.fetchone()
+    if not req:
+        cursor.close()
+        conn.close()
+        return jsonify({'message':'Request not found'}), 404
+    
+    if status=='Received':
+        stock_name = req['stock_name']
+        qty = req['quantity']
+        cursor.execute("SELECT * FROM stocks WHERE name=%s", (stock_name,))
+        stock = cursor.fetchone()
+        if stock and stock['quantity']>=qty:
+            cursor.execute("UPDATE stocks SET quantity=quantity-%s WHERE name=%s",(qty,stock_name))
+            cursor.execute("UPDATE requests SET status='Completed' WHERE id=%s", (id,))
         else:
+            cursor.close()
             conn.close()
-            return jsonify({'message': 'Invalid status provided.'}), 400
+            return jsonify({'message':'Not enough stock'}), 400
     
+    elif status in ['Accepted','Denied']:
+        cursor.execute("UPDATE requests SET status=%s WHERE id=%s", (status, id))
+    else:
+        cursor.close()
+        conn.close()
+        return jsonify({'message':'Invalid status'}),400
+    
+    conn.commit()
+    cursor.close()
     conn.close()
-    return jsonify({'message': 'Request not found'}), 404
+    return jsonify({'message':'Request updated'}),200
 
-# The home route now serves a static template
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-if __name__ == '__main__':
-    # Initialize the database on startup
+# Run server
+if __name__=='__main__':
     init_db()
     app.run(debug=True)
