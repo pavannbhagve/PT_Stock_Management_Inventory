@@ -30,6 +30,15 @@
         .hidden {
             display: none;
         }
+        .alert-yellow {
+            background-color: #fef3c7; /* Yellow-100 */
+        }
+        .alert-orange {
+            background-color: #fdba74; /* Orange-300 */
+        }
+        .alert-red {
+            background-color: #fecaca; /* Red-300 */
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
@@ -118,9 +127,9 @@
                 </table>
             </div>
         </div>
-        
+    
         <!-- Stock Request Management Section for HOD -->
-        <div>
+        <div class="mb-8">
             <h2 class="text-2xl font-semibold text-gray-700 mb-4">Stock Requests</h2>
             <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
                 <table id="hod-request-table" class="min-w-full divide-y divide-gray-200">
@@ -129,12 +138,55 @@
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Name</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested By</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="hod-request-tbody" class="bg-white divide-y divide-gray-200">
                         <!-- Requests will be populated here for HOD -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- HOD View of Engineer Personal Stock -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Engineer Personal Stock List</h2>
+            <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
+                <table id="hod-personal-stock-table" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engineer Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hod-personal-stock-tbody" class="bg-white divide-y divide-gray-200">
+                        <!-- Personal stocks for all engineers will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- HOD View of Stock Usage Log -->
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Stock Usage Log</h2>
+            <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
+                <table id="hod-used-stock-table" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engineer</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Site</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hod-used-stock-tbody" class="bg-white divide-y divide-gray-200">
+                        <!-- All usage logs will be populated here -->
                     </tbody>
                 </table>
             </div>
@@ -169,33 +221,156 @@
 
         <!-- Stock Request Section for Engineer -->
         <div class="mb-8">
-            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Submit Stock Request</h2>
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4" id="request-title">Submit Stock Request</h2>
             <div class="flex flex-col sm:flex-row items-start sm:items-end space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
                 <div class="flex-grow w-full">
                     <label for="request-stock-name" class="block text-sm font-medium text-gray-700 mb-1">Stock Name</label>
-                    <input type="text" id="request-stock-name" placeholder="Stock Name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                    <select id="request-stock-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                        <!-- Options will be populated here by JS -->
+                    </select>
                 </div>
                 <div class="flex-grow w-full">
                     <label for="request-stock-quantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
                     <input type="number" id="request-stock-quantity" placeholder="Quantity" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
                 </div>
             </div>
+            <div class="mb-6">
+                <label for="request-remarks" class="block text-sm font-medium text-gray-700 mb-1">Remarks (optional)</label>
+                <textarea id="request-remarks" placeholder="Add a note about why this stock is needed..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300"></textarea>
+            </div>
             <div class="w-full flex justify-end">
                 <button id="submit-request-btn" class="w-full sm:w-auto px-6 py-2 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-300">Submit Request</button>
             </div>
-            
-            <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200 mt-6">
+        </div>
+
+        <!-- New: Urgent Stock Request Section for Engineer -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Urgent Stock Request</h2>
+            <p class="text-gray-600 mb-4">Use this for stock items that are not in the main list and are needed urgently.</p>
+            <div class="flex flex-col sm:flex-row items-start sm:items-end space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
+                <div class="flex-grow w-full">
+                    <label for="urgent-stock-name" class="block text-sm font-medium text-gray-700 mb-1">Stock Name</label>
+                    <input type="text" id="urgent-stock-name" placeholder="Enter stock name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+                <div class="flex-grow w-full">
+                    <label for="urgent-stock-quantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                    <input type="number" id="urgent-stock-quantity" placeholder="Quantity" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+            </div>
+            <div class="mb-6">
+                <label for="urgent-request-remarks" class="block text-sm font-medium text-gray-700 mb-1">Remarks (optional)</label>
+                <textarea id="urgent-request-remarks" placeholder="Explain the urgency and need for this stock..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300"></textarea>
+            </div>
+            <div class="w-full flex justify-end">
+                <button id="submit-urgent-request-btn" class="w-full sm:w-auto px-6 py-2 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-300">Submit Urgent Request</button>
+            </div>
+        </div>
+
+        <!-- Engineer Request List -->
+        <div class="mb-8">
+             <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
                 <table id="engineer-request-table" class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Name</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Docket No.</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="engineer-request-tbody" class="bg-white divide-y divide-gray-200">
                         <!-- Requests will be populated here for the Engineer -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Engineer Personal Stock List -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">My Personal Stock</h2>
+            
+            <!-- Engineer can manually add/update stock -->
+            <div class="flex flex-col sm:flex-row items-start sm:items-end space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
+                <div class="flex-grow w-full">
+                    <label for="personal-stock-name" class="block text-sm font-medium text-gray-700 mb-1">Stock Name</label>
+                    <input type="text" id="personal-stock-name" placeholder="Enter stock name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+                <div class="flex-grow w-full">
+                    <label for="personal-stock-quantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                    <input type="number" id="personal-stock-quantity" placeholder="Quantity" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+                <button id="add-personal-stock-btn" class="w-full sm:w-auto px-6 py-2 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-300">Add/Update Stock</button>
+            </div>
+
+            <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
+                <table id="engineer-personal-stock-table" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="engineer-personal-stock-tbody" class="bg-white divide-y divide-gray-200">
+                        <!-- Personal stocks will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Engineer Stock Usage Log -->
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Stock Usage Log</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                <div>
+                    <label for="usage-stock-name" class="block text-sm font-medium text-gray-700 mb-1">Stock Name</label>
+                    <select id="usage-stock-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                        <option value="">Select Stock</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="usage-quantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                    <input type="number" id="usage-quantity" placeholder="Quantity" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+                <div>
+                    <label for="usage-date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="date" id="usage-date" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+                <div>
+                    <label for="usage-site" class="block text-sm font-medium text-gray-700 mb-1">Site Name</label>
+                    <input type="text" id="usage-site" placeholder="Site Name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+                <div>
+                    <label for="usage-reason" class="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+                    <input type="text" id="usage-reason" placeholder="Reason for usage" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                </div>
+                <div>
+                    <label for="usage-type" class="block text-sm font-medium text-gray-700 mb-1">Type (AMC/CMC)</label>
+                    <select id="usage-type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300">
+                        <option value="AMC">AMC</option>
+                        <option value="CMC">CMC</option>
+                    </select>
+                </div>
+            </div>
+            <div class="w-full flex justify-end mb-6">
+                <button id="record-usage-btn" class="w-full sm:w-auto px-6 py-2 bg-purple-500 text-white font-medium rounded-lg hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-300">Record Usage</button>
+            </div>
+            
+            <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
+                <table id="engineer-used-stock-table" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Site</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="engineer-used-stock-tbody" class="bg-white divide-y divide-gray-200">
+                        <!-- Usage logs will be populated here -->
                     </tbody>
                 </table>
             </div>
@@ -213,12 +388,45 @@
         const hodRequestTbody = document.getElementById('hod-request-tbody');
         const engineerRequestTbody = document.getElementById('engineer-request-tbody');
         const engineerStockTbody = document.getElementById('engineer-stock-tbody');
+        const engineerPersonalStockTbody = document.getElementById('engineer-personal-stock-tbody');
+        const hodPersonalStockTbody = document.getElementById('hod-personal-stock-tbody');
+        const hodUsedStockTbody = document.getElementById('hod-used-stock-tbody');
+        const engineerUsedStockTbody = document.getElementById('engineer-used-stock-tbody');
         const engineerNameDisplay = document.getElementById('engineer-name-display');
         const messageBox = document.getElementById('message-box');
+        const requestStockNameSelect = document.getElementById('request-stock-name');
+        const usageStockNameSelect = document.getElementById('usage-stock-name');
+        
+        const submitRequestBtn = document.getElementById('submit-request-btn');
+        const urgentStockNameInput = document.getElementById('urgent-stock-name');
+        const urgentStockQuantityInput = document.getElementById('urgent-stock-quantity');
+        const urgentRequestRemarksTextarea = document.getElementById('urgent-request-remarks');
+        const requestStockQuantityInput = document.getElementById('request-stock-quantity');
+        const requestRemarksTextarea = document.getElementById('request-remarks');
         
         let userRole = null;
         let userName = null;
+        let editingRequestId = null;
         
+        // Mock API data with added fields for urgency and timestamps
+        let engineers = [{ id: 1, name: 'Eng-Alice', password: 'password' }];
+        let stocks = [{ id: 1, name: 'Laptop', quantity: 5 }, { id: 2, name: 'Monitor', quantity: 10 }];
+        let requests = [
+            { id: 1, stock_name: 'Laptop', quantity: 1, requester_name: 'Eng-Alice', status: 'Pending', remarks: 'For new hire setup.', is_urgent: false, request_timestamp: Date.now() - (3 * 24 * 60 * 60 * 1000) }
+        ];
+        let engineerPersonalStocks = [];
+        let usedStocks = []; // New array to store usage records
+
+        // Alert thresholds in milliseconds
+        const DAY = 24 * 60 * 60 * 1000;
+        const URGENT_YELLOW_THRESHOLD = 2 * DAY;
+        const URGENT_RED_THRESHOLD = 5 * DAY;
+        const PENDING_EMAIL_THRESHOLD = 8 * DAY;
+        const DOCKET_YELLOW_THRESHOLD = 1 * DAY;
+        const DOCKET_ORANGE_THRESHOLD = 2 * DAY;
+        const DOCKET_RED_THRESHOLD = 5 * DAY;
+        const DOCKET_EMAIL_THRESHOLD = 8 * DAY;
+
         // Function to show messages
         function showMessage(message, type = 'success') {
             messageBox.textContent = message;
@@ -228,17 +436,70 @@
             }, 3000);
         }
         
-        // Fetch data from Flask API
+        // Fetch data from Mock API
         async function fetchData(endpoint) {
-            try {
-                const response = await fetch(endpoint);
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
+            // Mock API calls
+            if (endpoint === '/api/engineers') return engineers;
+            if (endpoint === '/api/stocks') return stocks;
+            if (endpoint === '/api/requests') return requests;
+            return [];
+        }
+
+        // Mock function to send an email
+        function mockSendEmail(to, subject, body) {
+            console.log(`--- MOCK EMAIL SENT ---`);
+            console.log(`To: ${to}`);
+            console.log(`Subject: ${subject}`);
+            console.log(`Body: ${body}`);
+            console.log(`-----------------------`);
+        }
+
+        // Function to check and update alerts
+        function checkAlerts() {
+            const now = Date.now();
+            requests.forEach(req => {
+                let alert_status = 'none';
+
+                if (req.status === 'Pending') {
+                    const timeElapsed = now - req.request_timestamp;
+                    if (timeElapsed >= PENDING_EMAIL_THRESHOLD) {
+                         if (!req.email_sent) {
+                            mockSendEmail('service.aur@ptespl.com', 'Urgent Action Required: Unfulfilled Stock Request', 
+                                `Request for "${req.stock_name}" from "${req.requester_name}" has been pending for over 7 days.`);
+                            req.email_sent = true;
+                            alert_status = 'red';
+                        }
+                    } else if (timeElapsed >= URGENT_RED_THRESHOLD) {
+                        alert_status = 'red';
+                    } else if (timeElapsed >= URGENT_YELLOW_THRESHOLD) {
+                        alert_status = 'yellow';
+                    }
+                } else if (req.status === 'Accepted' || req.status === 'In Transit') {
+                    if (req.acceptance_timestamp) {
+                        const timeElapsed = now - req.acceptance_timestamp;
+                         if (timeElapsed >= DOCKET_EMAIL_THRESHOLD) {
+                            if (!req.email_sent) {
+                                mockSendEmail('support@ptespl.com', 'Urgent Action Required: Stock Not Sent', 
+                                `Request for "${req.stock_name}" from "${req.requester_name}" was accepted but not sent for over 7 days. Docket Number: ${req.docket_number || 'N/A'}`);
+                                req.email_sent = true;
+                                alert_status = 'red';
+                            }
+                        } else if (timeElapsed >= DOCKET_RED_THRESHOLD) {
+                            alert_status = 'red';
+                        } else if (timeElapsed >= DOCKET_ORANGE_THRESHOLD) {
+                            alert_status = 'orange';
+                        } else if (timeElapsed >= DOCKET_YELLOW_THRESHOLD) {
+                            alert_status = 'yellow';
+                        }
+                    }
                 }
-                return await response.json();
-            } catch (error) {
-                showMessage('Failed to load data: ' + error.message, 'error');
-                return [];
+                req.alert_status = alert_status;
+            });
+            // Re-render dashboards to show updated alerts
+            if (userRole === 'HOD') {
+                renderHodDashboard();
+            } else if (userRole === 'Engineer') {
+                renderEngineerDashboard();
             }
         }
         
@@ -285,24 +546,69 @@
                         <button onclick="updateRequestStatus(${req.id}, 'Denied')" class="text-red-600 hover:text-red-900 font-medium">Deny</button>
                     `;
                 } else if (req.status === 'Accepted') {
-                    actionButtons = `Awaiting Engineer Confirmation`;
+                    actionButtons = `
+                        <div class="flex items-center space-x-2">
+                            <input type="text" id="docket-${req.id}" placeholder="Docket No." class="w-24 px-2 py-1 border border-gray-300 rounded-md text-sm">
+                            <button onclick="sendStock(${req.id})" class="px-3 py-1 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600">Send</button>
+                        </div>
+                    `;
+                } else if (req.status === 'In Transit') {
+                    actionButtons = `In Transit`;
                 } else if (req.status === 'Completed') {
                     actionButtons = `Completed`;
                 } else if (req.status === 'Denied') {
                     actionButtons = `Denied`;
                 }
+
+                const alertClass = req.alert_status === 'yellow' ? 'alert-yellow' :
+                                   req.alert_status === 'orange' ? 'alert-orange' :
+                                   req.alert_status === 'red' ? 'alert-red' : '';
+                
+                const displayStatus = req.is_urgent ? `${req.status} (Urgent)` : req.status;
+
                 const row = `
-                    <tr>
+                    <tr class="${alertClass}">
                         <td class="px-6 py-4 whitespace-nowrap">${req.stock_name}</td>
                         <td class="px-6 py-4 whitespace-nowrap">${req.quantity}</td>
                         <td class="px-6 py-4 whitespace-nowrap">${req.requester_name}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">${req.status}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <td class="px-6 py-4 whitespace-normal">${req.remarks || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${displayStatus}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
                             ${actionButtons}
                         </td>
                     </tr>
                 `;
                 hodRequestTbody.innerHTML += row;
+            });
+
+            // Render HOD's view of all engineer personal stock
+            hodPersonalStockTbody.innerHTML = '';
+            engineerPersonalStocks.forEach(stock => {
+                const row = `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${stock.requester_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${stock.stock_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${stock.quantity}</td>
+                    </tr>
+                `;
+                hodPersonalStockTbody.innerHTML += row;
+            });
+            
+            // Render HOD's view of stock usage logs
+            hodUsedStockTbody.innerHTML = '';
+            usedStocks.forEach(usage => {
+                const row = `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${usage.stock_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${usage.quantity}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${usage.engineer_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${usage.date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${usage.site_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${usage.reason}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${usage.type}</td>
+                    </tr>
+                `;
+                hodUsedStockTbody.innerHTML += row;
             });
         }
         
@@ -312,6 +618,23 @@
             const stocks = await fetchData('/api/stocks');
             const requests = await fetchData('/api/requests');
             
+            // Populate stock dropdowns
+            requestStockNameSelect.innerHTML = '<option value="" disabled selected>Select stock...</option>';
+            stocks.forEach(stock => {
+                const option = document.createElement('option');
+                option.value = stock.name;
+                option.textContent = `${stock.name} (${stock.quantity} available)`;
+                requestStockNameSelect.appendChild(option);
+            });
+            
+            usageStockNameSelect.innerHTML = '<option value="" disabled selected>Select Stock</option>';
+            engineerPersonalStocks.filter(s => s.requester_name === userName).forEach(stock => {
+                const option = document.createElement('option');
+                option.value = stock.stock_name;
+                option.textContent = `${stock.stock_name} (${stock.quantity} available)`;
+                usageStockNameSelect.appendChild(option);
+            });
+
             engineerStockTbody.innerHTML = '';
             stocks.forEach(stock => {
                 const rowClass = stock.quantity === 0 ? 'bg-red-200' : 'bg-white';
@@ -327,18 +650,69 @@
             engineerRequestTbody.innerHTML = '';
             requests.filter(req => req.requester_name === userName).forEach(req => {
                 let actionButtons = '';
-                if (req.status === 'Accepted') {
+                let displayStatus = req.status;
+
+                if (req.status === 'Pending') {
+                    actionButtons = `
+                        <button onclick="editRequest(${req.id})" class="text-blue-600 hover:text-blue-900 font-medium mr-2">Edit</button>
+                        <button onclick="deleteRequest(${req.id})" class="text-red-600 hover:text-red-900 font-medium">Delete</button>
+                    `;
+                } else if (req.status === 'Accepted') {
+                    displayStatus = 'Accepted by HOD & waiting for docket number and stock';
+                } else if (req.status === 'In Transit') {
                     actionButtons = `<button onclick="markAsReceived(${req.id})" class="text-green-600 hover:text-green-900 font-medium">Mark as Received</button>`;
                 }
+                
+                const docketNumber = req.docket_number ? req.docket_number : 'N/A';
+                
+                const alertClass = req.alert_status === 'yellow' ? 'alert-yellow' :
+                                   req.alert_status === 'orange' ? 'alert-orange' :
+                                   req.alert_status === 'red' ? 'alert-red' : '';
+                                   
+                const displayStatusText = req.is_urgent ? `${displayStatus} (Urgent)` : displayStatus;
+
                 const row = `
-                    <tr>
+                    <tr class="${alertClass}">
                         <td class="px-6 py-4 whitespace-nowrap">${req.stock_name}</td>
                         <td class="px-6 py-4 whitespace-nowrap">${req.quantity}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">${req.status}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">${actionButtons}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${displayStatusText}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${docketNumber}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">${actionButtons}</td>
                     </tr>
                 `;
                 engineerRequestTbody.innerHTML += row;
+            });
+
+            // Render personal stock list
+            engineerPersonalStockTbody.innerHTML = '';
+            const personalStocks = engineerPersonalStocks.filter(s => s.requester_name === userName);
+            personalStocks.forEach(stock => {
+                const row = `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${stock.stock_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${stock.quantity}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
+                            <button onclick="deletePersonalStock('${stock.stock_name}')" class="text-red-600 hover:text-red-900 font-medium">Delete</button>
+                        </td>
+                    </tr>
+                `;
+                engineerPersonalStockTbody.innerHTML += row;
+            });
+            
+            // Render engineer's usage log
+            engineerUsedStockTbody.innerHTML = '';
+            usedStocks.filter(usage => usage.engineer_name === userName).forEach(usage => {
+                const row = `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${usage.stock_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${usage.quantity}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${usage.date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${usage.site_name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${usage.reason}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${usage.type}</td>
+                    </tr>
+                `;
+                engineerUsedStockTbody.innerHTML += row;
             });
         }
 
@@ -347,28 +721,28 @@
             const username = loginUsernameInput.value;
             const password = loginPasswordInput.value;
             
-            const response = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const result = await response.json();
+            // Mock login logic
+            const hodUser = { username: 'PTESPL', password: 'ptespl123', role: 'HOD' };
+            const engineerUsers = engineers.map(eng => ({ username: eng.name, password: eng.password, role: 'Engineer' }));
+            const users = [hodUser, ...engineerUsers];
             
-            if (result.role === 'HOD') {
-                userRole = 'HOD';
+            const user = users.find(u => u.username === username && u.password === password);
+
+            if (user) {
+                userRole = user.role;
+                userName = user.username;
                 loginPage.classList.add('hidden');
-                hodDashboard.classList.remove('hidden');
-                renderHodDashboard();
-                showMessage('Logged in as HOD!');
-            } else if (result.role === 'Engineer') {
-                userRole = 'Engineer';
-                userName = result.name;
-                loginPage.classList.add('hidden');
-                engineerDashboard.classList.remove('hidden');
-                renderEngineerDashboard();
-                showMessage('Logged in as Engineer!');
+                if (userRole === 'HOD') {
+                    hodDashboard.classList.remove('hidden');
+                    renderHodDashboard();
+                } else {
+                    engineerDashboard.classList.remove('hidden');
+                    renderEngineerDashboard();
+                }
+                showMessage(`Logged in as ${user.username}!`);
+                setInterval(checkAlerts, 5000); // Check for alerts every 5 seconds
             } else {
-                showMessage(result.message, 'error');
+                showMessage('Invalid username or password.', 'error');
             }
         });
         
@@ -389,21 +763,18 @@
         });
         
         // HOD Dashboard actions
-        window.deleteEngineer = async (id) => {
-            await fetch(`/api/engineers/${id}`, { method: 'DELETE' });
-            renderHodDashboard(); // Re-render the dashboard
+        window.deleteEngineer = (id) => {
+            engineers = engineers.filter(eng => eng.id !== id);
+            renderHodDashboard();
             showMessage('Engineer deleted successfully.');
         };
         
-        document.getElementById('add-engineer-btn').addEventListener('click', async () => {
+        document.getElementById('add-engineer-btn').addEventListener('click', () => {
             const name = document.getElementById('engineer-name').value;
             const password = document.getElementById('engineer-password').value;
             if (name && password) {
-                await fetch('/api/engineers', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, password })
-                });
+                const newId = engineers.length > 0 ? Math.max(...engineers.map(e => e.id)) + 1 : 1;
+                engineers.push({ id: newId, name, password });
                 document.getElementById('engineer-name').value = '';
                 document.getElementById('engineer-password').value = '';
                 renderHodDashboard();
@@ -413,95 +784,282 @@
             }
         });
         
-        document.getElementById('add-update-stock-btn').addEventListener('click', async () => {
+        document.getElementById('add-update-stock-btn').addEventListener('click', () => {
             const name = document.getElementById('stock-name').value;
             const quantity = parseInt(document.getElementById('stock-quantity').value, 10);
+            const stock = stocks.find(s => s.name.toLowerCase() === name.toLowerCase());
+            
             if (name && !isNaN(quantity)) {
-                await fetch('/api/stocks', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, quantity })
-                });
+                if (stock) {
+                    stock.quantity += quantity;
+                    showMessage('Stock quantity updated successfully!');
+                } else {
+                    const newId = stocks.length > 0 ? Math.max(...stocks.map(s => s.id)) + 1 : 1;
+                    stocks.push({ id: newId, name, quantity });
+                    showMessage('New stock added successfully!');
+                }
                 document.getElementById('stock-name').value = '';
                 document.getElementById('stock-quantity').value = '';
                 renderHodDashboard();
-                showMessage('Stock added successfully!');
             } else {
                 showMessage('Please enter valid stock name and quantity.', 'error');
             }
         });
 
-        document.getElementById('set-stock-btn').addEventListener('click', async () => {
+        document.getElementById('set-stock-btn').addEventListener('click', () => {
             const name = document.getElementById('stock-name').value;
             const quantity = parseInt(document.getElementById('stock-quantity').value, 10);
+            const stock = stocks.find(s => s.name.toLowerCase() === name.toLowerCase());
+
             if (name && !isNaN(quantity)) {
-                await fetch('/api/stocks', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, quantity })
-                });
+                if (stock) {
+                    stock.quantity = quantity;
+                    showMessage('Stock quantity set successfully!');
+                } else {
+                     const newId = stocks.length > 0 ? Math.max(...stocks.map(s => s.id)) + 1 : 1;
+                    stocks.push({ id: newId, name, quantity });
+                    showMessage('New stock added successfully!');
+                }
                 document.getElementById('stock-name').value = '';
                 document.getElementById('stock-quantity').value = '';
                 renderHodDashboard();
-                showMessage('Stock quantity set successfully!');
             } else {
                 showMessage('Please enter valid stock name and quantity.', 'error');
             }
         });
         
-        window.deleteStock = async (id) => {
-            await fetch(`/api/stocks/${id}`, { method: 'DELETE' });
+        window.deleteStock = (id) => {
+            stocks = stocks.filter(stock => stock.id !== id);
             renderHodDashboard();
             showMessage('Stock deleted successfully.');
         };
 
-        window.updateRequestStatus = async (id, status) => {
-            await fetch(`/api/requests/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status })
-            });
-            renderHodDashboard();
-            renderEngineerDashboard();
-            showMessage(`Request status updated to ${status}.`);
+        window.updateRequestStatus = (id, status) => {
+            const request = requests.find(req => req.id === id);
+            if (request) {
+                request.status = status;
+                if (status === 'Accepted') {
+                    request.acceptance_timestamp = Date.now();
+                }
+                renderHodDashboard();
+                renderEngineerDashboard();
+                showMessage(`Request status updated to ${status}.`);
+            }
+        };
+
+        window.sendStock = (id) => {
+            const docketNumber = document.getElementById(`docket-${id}`).value;
+            const request = requests.find(req => req.id === id);
+            const stock = stocks.find(s => s.name.toLowerCase() === request.stock_name.toLowerCase());
+            
+            if (docketNumber && request && (stock || request.is_urgent)) {
+                if (stock && stock.quantity < request.quantity) {
+                    showMessage('Not enough stock available to fulfill this request.', 'error');
+                    return;
+                }
+                
+                if (stock) {
+                    stock.quantity -= request.quantity; // Deduct the quantity
+                }
+                
+                request.status = 'In Transit';
+                request.docket_number = docketNumber;
+                request.acceptance_timestamp = Date.now(); // Re-record acceptance timestamp
+                renderHodDashboard();
+                renderEngineerDashboard();
+                showMessage('Stock is now In Transit with docket number: ' + docketNumber);
+            } else {
+                showMessage('Please enter a docket number or there was an error finding the stock.', 'error');
+            }
         };
         
         // Engineer Dashboard actions
-        document.getElementById('submit-request-btn').addEventListener('click', async () => {
+        submitRequestBtn.addEventListener('click', () => {
             const name = document.getElementById('request-stock-name').value;
             const quantity = parseInt(document.getElementById('request-stock-quantity').value, 10);
+            const remarks = document.getElementById('request-remarks').value;
             
-            if (name && !isNaN(quantity)) {
-                await fetch('/api/requests', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ stock_name: name, quantity, requester_name: userName })
-                });
+            if (name && !isNaN(quantity) && quantity > 0) {
+                if (editingRequestId) {
+                    // This is an edit operation
+                    const request = requests.find(req => req.id === editingRequestId);
+                    if (request) {
+                        request.stock_name = name;
+                        request.quantity = quantity;
+                        request.remarks = remarks;
+                        showMessage('Request updated successfully!');
+                    }
+                    editingRequestId = null;
+                    submitRequestBtn.textContent = 'Submit Request';
+                } else {
+                    // This is a new submission
+                    const newId = requests.length > 0 ? Math.max(...requests.map(r => r.id)) + 1 : 1;
+                    requests.push({ id: newId, stock_name: name, quantity, requester_name: userName, remarks, status: 'Pending', is_urgent: false, request_timestamp: Date.now() });
+                    showMessage('Request submitted successfully!');
+                }
+                
                 document.getElementById('request-stock-name').value = '';
                 document.getElementById('request-stock-quantity').value = '';
-                renderEngineerDashboard();
-                showMessage('Request submitted successfully!');
-            } else {
-                showMessage('Please enter valid stock name and quantity.', 'error');
-            }
-        });
+                document.getElementById('request-remarks').value = '';
 
-        window.markAsReceived = async (id) => {
-            const response = await fetch(`/api/requests/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'Received' })
-            });
-            const result = await response.json();
-            if (response.ok) {
                 renderEngineerDashboard();
                 renderHodDashboard();
-                showMessage(result.message);
             } else {
-                showMessage(result.message, 'error');
+                showMessage('Please enter a valid stock name and quantity.', 'error');
+            }
+        });
+        
+        // New: Edit a pending request
+        window.editRequest = (id) => {
+            const request = requests.find(req => req.id === id);
+            if (request && request.status === 'Pending') {
+                editingRequestId = id;
+                document.getElementById('request-stock-name').value = request.stock_name;
+                document.getElementById('request-stock-quantity').value = request.quantity;
+                document.getElementById('request-remarks').value = request.remarks;
+                submitRequestBtn.textContent = 'Update Request';
+                document.getElementById('request-title').scrollIntoView({ behavior: 'smooth' });
+            } else {
+                 showMessage('Only pending requests can be edited.', 'error');
             }
         };
 
+        // New: Delete a pending request
+        window.deleteRequest = (id) => {
+             const request = requests.find(req => req.id === id);
+             if (request && request.status === 'Pending') {
+                 requests = requests.filter(req => req.id !== id);
+                 renderEngineerDashboard();
+                 renderHodDashboard();
+                 showMessage('Request deleted successfully!');
+             } else {
+                 showMessage('Only pending requests can be deleted.', 'error');
+             }
+        };
+        
+        // New: Urgent stock request
+        document.getElementById('submit-urgent-request-btn').addEventListener('click', () => {
+            const name = document.getElementById('urgent-stock-name').value;
+            const quantity = parseInt(document.getElementById('urgent-stock-quantity').value, 10);
+            const remarks = document.getElementById('urgent-request-remarks').value;
+
+            if (name && !isNaN(quantity) && quantity > 0) {
+                 const newId = requests.length > 0 ? Math.max(...requests.map(r => r.id)) + 1 : 1;
+                requests.push({ id: newId, stock_name: name, quantity, requester_name: userName, remarks, status: 'Pending', is_urgent: true, request_timestamp: Date.now() });
+                document.getElementById('urgent-stock-name').value = '';
+                document.getElementById('urgent-stock-quantity').value = '';
+                document.getElementById('urgent-request-remarks').value = '';
+                renderEngineerDashboard();
+                showMessage('Urgent request submitted successfully!');
+            } else {
+                showMessage('Please enter a valid stock name and quantity.', 'error');
+            }
+        });
+
+        window.markAsReceived = (id) => {
+            const request = requests.find(req => req.id === id);
+            if (request) {
+                // Add stock to engineer's personal list
+                const existingPersonalStock = engineerPersonalStocks.find(s => s.requester_name === request.requester_name && s.stock_name.toLowerCase() === request.stock_name.toLowerCase());
+                if (existingPersonalStock) {
+                    existingPersonalStock.quantity += request.quantity;
+                } else {
+                    engineerPersonalStocks.push({
+                        requester_name: request.requester_name,
+                        stock_name: request.stock_name,
+                        quantity: request.quantity
+                    });
+                }
+
+                request.status = 'Completed';
+                renderEngineerDashboard();
+                renderHodDashboard();
+                showMessage('Stock received successfully!');
+            }
+        };
+
+        // Engineer personal stock actions
+        document.getElementById('add-personal-stock-btn').addEventListener('click', () => {
+            const stockName = document.getElementById('personal-stock-name').value.trim();
+            const quantity = parseInt(document.getElementById('personal-stock-quantity').value, 10);
+            
+            if (stockName && !isNaN(quantity) && quantity > 0) {
+                const existingPersonalStock = engineerPersonalStocks.find(s => s.requester_name === userName && s.stock_name.toLowerCase() === stockName.toLowerCase());
+                
+                if (existingPersonalStock) {
+                    existingPersonalStock.quantity += quantity;
+                    showMessage('Personal stock quantity updated successfully!');
+                } else {
+                    engineerPersonalStocks.push({
+                        requester_name: userName,
+                        stock_name: stockName,
+                        quantity: quantity
+                    });
+                    showMessage('New personal stock added successfully!');
+                }
+                document.getElementById('personal-stock-name').value = '';
+                document.getElementById('personal-stock-quantity').value = '';
+                renderEngineerDashboard();
+                renderHodDashboard();
+            } else {
+                showMessage('Please enter a valid stock name and quantity.', 'error');
+            }
+        });
+
+        window.deletePersonalStock = (stockName) => {
+            engineerPersonalStocks = engineerPersonalStocks.filter(s => !(s.requester_name === userName && s.stock_name.toLowerCase() === stockName.toLowerCase()));
+            renderEngineerDashboard();
+            renderHodDashboard();
+            showMessage('Personal stock deleted successfully.');
+        };
+        
+        // New: Engineer stock usage actions
+        document.getElementById('record-usage-btn').addEventListener('click', () => {
+            const stockName = usageStockNameSelect.value;
+            const quantity = parseInt(document.getElementById('usage-quantity').value, 10);
+            const date = document.getElementById('usage-date').value;
+            const siteName = document.getElementById('usage-site').value;
+            const reason = document.getElementById('usage-reason').value;
+            const type = document.getElementById('usage-type').value;
+
+            if (stockName && !isNaN(quantity) && quantity > 0 && date && siteName && reason && type) {
+                const personalStock = engineerPersonalStocks.find(s => s.requester_name === userName && s.stock_name.toLowerCase() === stockName.toLowerCase());
+
+                if (personalStock && personalStock.quantity >= quantity) {
+                    // Deduct from personal stock
+                    personalStock.quantity -= quantity;
+
+                    // Add to used stocks log
+                    usedStocks.push({
+                        stock_name: stockName,
+                        quantity: quantity,
+                        engineer_name: userName,
+                        date: date,
+                        site_name: siteName,
+                        reason: reason,
+                        type: type
+                    });
+
+                    // Clear form fields
+                    usageStockNameSelect.value = '';
+                    document.getElementById('usage-quantity').value = '';
+                    document.getElementById('usage-date').value = '';
+                    document.getElementById('usage-site').value = '';
+                    document.getElementById('usage-reason').value = '';
+                    document.getElementById('usage-type').value = 'AMC';
+                    
+                    renderEngineerDashboard();
+                    renderHodDashboard();
+                    showMessage('Stock usage recorded successfully!');
+                } else if (!personalStock) {
+                    showMessage('Stock not found in your personal inventory.', 'error');
+                } else {
+                    showMessage('Not enough stock in your personal inventory.', 'error');
+                }
+            } else {
+                showMessage('Please fill out all fields to record usage.', 'error');
+            }
+        });
     </script>
 
 </body>
