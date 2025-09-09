@@ -67,8 +67,19 @@
             <button id="logout-btn-hod" class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 transition duration-300">Logout</button>
         </div>
 
+        <!-- HOD Navigation Bar -->
+        <nav class="bg-gray-100 p-4 rounded-lg mb-8 shadow-sm">
+            <ul class="flex flex-wrap justify-around text-gray-700 font-medium text-sm">
+                <li class="p-2"><a href="#engineer-management" class="hover:text-blue-500 transition duration-200">Engineer Management</a></li>
+                <li class="p-2"><a href="#stock-management" class="hover:text-blue-500 transition duration-200">Stock Management</a></li>
+                <li class="p-2"><a href="#stock-requests" class="hover:text-blue-500 transition duration-200">Stock Requests</a></li>
+                <li class="p-2"><a href="#engineer-personal-stock" class="hover:text-blue-500 transition duration-200">Engineer Personal Stock</a></li>
+                <li class="p-2"><a href="#stock-usage-log" class="hover:text-blue-500 transition duration-200">Stock Usage Log</a></li>
+            </ul>
+        </nav>
+
         <!-- Engineer Management Section -->
-        <div class="mb-8">
+        <div id="engineer-management" class="mb-8 p-6 bg-blue-50 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold text-gray-700 mb-4">Engineer Management</h2>
             <div class="flex flex-col sm:flex-row items-start sm:items-end space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
                 <div class="flex-grow w-full">
@@ -98,7 +109,7 @@
         </div>
 
         <!-- Stock Management Section -->
-        <div class="mb-8">
+        <div id="stock-management" class="mb-8 p-6 bg-green-50 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold text-gray-700 mb-4">Stock Management</h2>
             <div class="flex flex-col sm:flex-row items-start sm:items-end space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
                 <div class="flex-grow w-full">
@@ -129,7 +140,7 @@
         </div>
     
         <!-- Stock Request Management Section for HOD -->
-        <div class="mb-8">
+        <div id="stock-requests" class="mb-8 p-6 bg-yellow-50 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold text-gray-700 mb-4">Stock Requests</h2>
             <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
                 <table id="hod-request-table" class="min-w-full divide-y divide-gray-200">
@@ -151,7 +162,7 @@
         </div>
 
         <!-- HOD View of Engineer Personal Stock -->
-        <div class="mb-8">
+        <div id="engineer-personal-stock" class="mb-8 p-6 bg-purple-50 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold text-gray-700 mb-4">Engineer Personal Stock List</h2>
             <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
                 <table id="hod-personal-stock-table" class="min-w-full divide-y divide-gray-200">
@@ -170,7 +181,7 @@
         </div>
         
         <!-- HOD View of Stock Usage Log -->
-        <div>
+        <div id="stock-usage-log" class="p-6 bg-orange-50 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold text-gray-700 mb-4">Stock Usage Log</h2>
             <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
                 <table id="hod-used-stock-table" class="min-w-full divide-y divide-gray-200">
@@ -201,8 +212,20 @@
         </div>
         <p class="text-gray-600 mb-6">Logged in as: <span id="engineer-name-display" class="font-medium text-gray-800"></span></p>
 
+        <!-- Engineer Navigation Bar -->
+        <nav class="bg-gray-100 p-4 rounded-lg mb-8 shadow-sm">
+            <ul class="flex flex-wrap justify-around text-gray-700 font-medium text-sm">
+                <li class="p-2"><a href="#available-stock" class="hover:text-blue-500 transition duration-200">Available Stock</a></li>
+                <li class="p-2"><a href="#submit-request" class="hover:text-blue-500 transition duration-200">Submit Request</a></li>
+                <li class="p-2"><a href="#urgent-request" class="hover:text-blue-500 transition duration-200">Urgent Request</a></li>
+                <li class="p-2"><a href="#my-requests" class="hover:text-blue-500 transition duration-200">My Requests</a></li>
+                <li class="p-2"><a href="#my-personal-stock" class="hover:text-blue-500 transition duration-200">My Personal Stock</a></li>
+                <li class="p-2"><a href="#my-usage-log" class="hover:text-blue-500 transition duration-200">Usage Log</a></li>
+            </ul>
+        </nav>
+
         <!-- Stock List Section for Engineer -->
-        <div class="mb-8">
+        <div id="available-stock" class="mb-8 p-6 bg-blue-50 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold text-gray-700 mb-4">Available Stock</h2>
             <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
                 <table id="engineer-stock-table" class="min-w-full divide-y divide-gray-200">
@@ -220,7 +243,7 @@
         </div>
 
         <!-- Stock Request Section for Engineer -->
-        <div class="mb-8">
+        <div id="submit-request" class="mb-8 p-6 bg-green-50 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold text-gray-700 mb-4" id="request-title">Submit Stock Request</h2>
             <div class="flex flex-col sm:flex-row items-start sm:items-end space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
                 <div class="flex-grow w-full">
@@ -243,8 +266,8 @@
             </div>
         </div>
 
-        <!-- New: Urgent Stock Request Section for Engineer -->
-        <div class="mb-8">
+        <!-- Urgent Stock Request Section for Engineer -->
+        <div id="urgent-request" class="mb-8 p-6 bg-red-50 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold text-gray-700 mb-4">Urgent Stock Request</h2>
             <p class="text-gray-600 mb-4">Use this for stock items that are not in the main list and are needed urgently.</p>
             <div class="flex flex-col sm:flex-row items-start sm:items-end space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
@@ -267,7 +290,7 @@
         </div>
 
         <!-- Engineer Request List -->
-        <div class="mb-8">
+        <div id="my-requests" class="mb-8 p-6 bg-yellow-50 rounded-lg shadow-md">
              <div class="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
                 <table id="engineer-request-table" class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -287,7 +310,7 @@
         </div>
 
         <!-- Engineer Personal Stock List -->
-        <div class="mb-8">
+        <div id="my-personal-stock" class="mb-8 p-6 bg-purple-50 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold text-gray-700 mb-4">My Personal Stock</h2>
             
             <!-- Engineer can manually add/update stock -->
@@ -320,7 +343,7 @@
         </div>
 
         <!-- Engineer Stock Usage Log -->
-        <div>
+        <div id="my-usage-log" class="p-6 bg-orange-50 rounded-lg shadow-md">
             <h2 class="text-2xl font-semibold text-gray-700 mb-4">Stock Usage Log</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
                 <div>
@@ -479,7 +502,7 @@
                         const timeElapsed = now - req.acceptance_timestamp;
                          if (timeElapsed >= DOCKET_EMAIL_THRESHOLD) {
                             if (!req.email_sent) {
-                                mockSendEmail('support@ptespl.com', 'Urgent Action Required: Stock Not Sent', 
+                                mockSendEmail('service.aur@ptespl.com', 'Urgent Action Required: Stock Not Sent', 
                                 `Request for "${req.stock_name}" from "${req.requester_name}" was accepted but not sent for over 7 days. Docket Number: ${req.docket_number || 'N/A'}`);
                                 req.email_sent = true;
                                 alert_status = 'red';
@@ -722,7 +745,7 @@
             const password = loginPasswordInput.value;
             
             // Mock login logic
-            const hodUser = { username: 'PTESPL', password: 'ptespl123', role: 'HOD' };
+            const hodUser = { username: 'PTESPL', password: 'ptespl@123', role: 'HOD' };
             const engineerUsers = engineers.map(eng => ({ username: eng.name, password: eng.password, role: 'Engineer' }));
             const users = [hodUser, ...engineerUsers];
             
