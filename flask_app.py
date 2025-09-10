@@ -1,4 +1,5 @@
 import os
+import time
 from flask import Flask, jsonify, request, render_template
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -13,22 +14,32 @@ SECRET_KEY = os.getenv("SECRET_KEY", "secret")
 app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
 
-# PostgreSQL connection
+# PostgreSQL connection with retries for production
 def get_db_connection():
-    """Establishes and returns a database connection using the DATABASE_URL."""
+    """Establishes a database connection with retries."""
     if not DATABASE_URL:
         print("Error: DATABASE_URL environment variable is not set.")
         return None
-    try:
-        conn = psycopg2.connect(DATABASE_URL)
-        return conn
-    except Exception as e:
-        print(f"Database connection failed: {e}")
-        return None
+    
+    retries = 5
+    while retries > 0:
+        try:
+            conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
+            return conn
+        except psycopg2.OperationalError as e:
+            print(f"Database connection failed. Retrying in 5 seconds... ({retries} attempts left)")
+            print(f"Error: {e}")
+            time.sleep(5)
+            retries -= 1
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return None
+    
+    print("Failed to connect to the database after multiple retries.")
+    return None
 
-# Initialize DB and populate with a default user
 def init_db():
-    """Initializes the database by creating all necessary tables."""
+    """Initializes the database by creating all necessary tables and a default user."""
     conn = get_db_connection()
     if not conn:
         print("Cannot initialize database without a connection.")
@@ -37,7 +48,6 @@ def init_db():
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
-        # Create tables for HODs, Engineers, and their interactions
         print("Creating database tables if they do not exist...")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS hods (
@@ -82,7 +92,7 @@ def init_db():
             )
         """)
         
-        # Insert default HOD user if one does not already exist
+        # Insert a default HOD user if one does not already exist
         print("Checking for default 'admin' user...")
         cursor.execute("SELECT * FROM hods WHERE username = 'admin'")
         if cursor.fetchone() is None:
@@ -100,6 +110,10 @@ def init_db():
             cursor.close()
         if conn:
             conn.close()
+
+# Call init_db() as part of the app's startup process
+with app.app_context():
+    init_db()
 
 @app.route('/')
 def index():
@@ -259,7 +273,5 @@ def handle_usage_log():
         cursor.close()
         conn.close()
 
-# This is the correct way to run the app for local development.
-# The init_db() call will be handled by the setup_db.py script on Render.
 if __name__ == '__main__':
     app.run(debug=True)
