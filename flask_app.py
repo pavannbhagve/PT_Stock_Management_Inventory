@@ -15,16 +15,91 @@ app.config['SECRET_KEY'] = SECRET_KEY
 
 # PostgreSQL connection
 def get_db_connection():
+    """Establishes and returns a database connection using the DATABASE_URL."""
     if not DATABASE_URL:
-        print("DATABASE_URL environment variable is not set!")
+        print("Error: DATABASE_URL environment variable is not set.")
         return None
     try:
         conn = psycopg2.connect(DATABASE_URL)
-        print("Database connection successful.")
         return conn
     except Exception as e:
         print(f"Database connection failed: {e}")
         return None
+
+# Initialize DB and populate with a default user
+def init_db():
+    """Initializes the database by creating all necessary tables."""
+    conn = get_db_connection()
+    if not conn:
+        print("Cannot initialize database without a connection.")
+        return
+    
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        # Create tables for HODs, Engineers, and their interactions
+        print("Creating database tables if they do not exist...")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS hods (
+                id SERIAL PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                password TEXT NOT NULL
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS engineers (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                password TEXT NOT NULL
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stocks (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                quantity INTEGER NOT NULL
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS requests (
+                id SERIAL PRIMARY KEY,
+                engineer_name TEXT NOT NULL,
+                stock_name TEXT NOT NULL,
+                quantity INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                requested_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                sent_at TIMESTAMP WITH TIME ZONE,
+                received_at TIMESTAMP WITH TIME ZONE
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS usage_log (
+                id SERIAL PRIMARY KEY,
+                engineer_name TEXT NOT NULL,
+                stock_name TEXT NOT NULL,
+                quantity INTEGER NOT NULL,
+                used_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Insert default HOD user if one does not already exist
+        print("Checking for default 'admin' user...")
+        cursor.execute("SELECT * FROM hods WHERE username = 'admin'")
+        if cursor.fetchone() is None:
+            hashed_password = generate_password_hash("password")
+            cursor.execute("INSERT INTO hods (username, password) VALUES (%s, %s)", ('admin', hashed_password))
+            print("Default HOD 'admin' created successfully.")
+            
+        conn.commit()
+        print("Database initialization complete.")
+    except Exception as e:
+        print(f"Failed to initialize database: {e}")
+        conn.rollback()
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 @app.route('/')
 def index():
@@ -40,206 +115,64 @@ def login():
     if not conn:
         return jsonify({'message': 'Database connection error'}), 500
     cursor = conn.cursor(cursor_factory=RealDictCursor)
-    
+
     try:
-        # Check HODs table
+        # Check HODs table first
         cursor.execute("SELECT * FROM hods WHERE username = %s", (username,))
         user = cursor.fetchone()
         if user and check_password_hash(user['password'], password):
-            return jsonify({'username': user['username'], 'role': 'HOD'})
-        
+            return jsonify({'message': 'Login successful', 'role': 'HOD', 'username': user['username']}), 200
+
         # Check Engineers table
         cursor.execute("SELECT * FROM engineers WHERE name = %s", (username,))
         user = cursor.fetchone()
         if user and check_password_hash(user['password'], password):
-            return jsonify({'username': user['name'], 'role': 'Engineer'})
-            
+            return jsonify({'message': 'Login successful', 'role': 'Engineer', 'username': user['name']}), 200
+
         return jsonify({'message': 'Invalid credentials'}), 401
     except Exception as e:
         print(f"Login error: {e}")
-        return jsonify({'message': 'An error occurred during login'}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
-@app.route('/api/hods', methods=['POST'])
-def add_hod():
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-
-    if not username or not password:
-        return jsonify({'message': 'Username and password are required'}), 400
-
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({'message': 'Database connection error'}), 500
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    
-    try:
-        hashed_password = generate_password_hash(password)
-        cursor.execute("INSERT INTO hods (username, password) VALUES (%s, %s) RETURNING *", (username, hashed_password))
-        new_hod = cursor.fetchone()
-        conn.commit()
-        return jsonify(new_hod), 201
-    except psycopg2.IntegrityError:
-        conn.rollback()
-        return jsonify({'message': 'Username already exists'}), 409
-    except Exception as e:
-        print(f"Error adding HOD: {e}")
-        conn.rollback()
         return jsonify({'message': 'An error occurred'}), 500
     finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+        cursor.close()
+        conn.close()
 
-@app.route('/api/engineers', methods=['GET', 'POST', 'DELETE'])
-def manage_engineers():
+# --- API Endpoints for Requests ---
+@app.route('/api/requests', methods=['POST', 'GET'])
+def handle_requests():
     conn = get_db_connection()
     if not conn:
         return jsonify({'message': 'Database connection error'}), 500
     cursor = conn.cursor(cursor_factory=RealDictCursor)
-    
     try:
-        if request.method == 'GET':
-            cursor.execute("SELECT id, name FROM engineers")
-            engineers = cursor.fetchall()
-            return jsonify(engineers)
-            
-        elif request.method == 'POST':
+        if request.method == 'POST':
             data = request.json
-            name = data.get('name')
-            password = data.get('password')
-            if not name or not password:
-                return jsonify({'message': 'Name and password required'}), 400
-            
-            hashed_password = generate_password_hash(password)
-            cursor.execute("INSERT INTO engineers (name, password) VALUES (%s, %s) RETURNING *", (name, hashed_password))
-            new_engineer = cursor.fetchone()
-            conn.commit()
-            return jsonify(new_engineer), 201
-            
-        elif request.method == 'DELETE':
-            data = request.json
-            name = data.get('name')
-            if not name:
-                return jsonify({'message': 'Name required'}), 400
-            
-            cursor.execute("DELETE FROM engineers WHERE name=%s RETURNING *", (name,))
-            deleted_engineer = cursor.fetchone()
-            if deleted_engineer:
-                conn.commit()
-                return jsonify({'message': 'Engineer deleted', 'engineer': deleted_engineer}), 200
-            else:
-                conn.rollback()
-                return jsonify({'message': 'Engineer not found'}), 404
-                
-    except psycopg2.IntegrityError:
-        conn.rollback()
-        return jsonify({'message': 'Name already exists'}), 409
-    except Exception as e:
-        print(f"Error managing engineers: {e}")
-        conn.rollback()
-        return jsonify({'message': 'An error occurred'}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
-@app.route('/api/stocks', methods=['GET', 'POST', 'DELETE'])
-def manage_stocks():
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({'message': 'Database connection error'}), 500
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    
-    try:
-        if request.method == 'GET':
-            cursor.execute("SELECT * FROM stocks")
-            stocks = cursor.fetchall()
-            return jsonify(stocks)
-            
-        elif request.method == 'POST':
-            data = request.json
-            name = data.get('name')
+            engineer_name = data.get('engineer_name')
+            stock_name = data.get('stock_name')
             quantity = data.get('quantity')
-            if not name or quantity is None or not isinstance(quantity, int) or quantity < 0:
-                return jsonify({'message': 'Name and positive integer quantity required'}), 400
-            
-            cursor.execute("INSERT INTO stocks (name, quantity) VALUES (%s, %s) ON CONFLICT (name) DO UPDATE SET quantity = stocks.quantity + EXCLUDED.quantity RETURNING *", (name, quantity))
-            updated_stock = cursor.fetchone()
+            status = 'Awaiting Approval'
+
+            if not all([engineer_name, stock_name, quantity]):
+                return jsonify({'message': 'Missing data'}), 400
+
+            cursor.execute(
+                "INSERT INTO requests (engineer_name, stock_name, quantity, status) VALUES (%s, %s, %s, %s)",
+                (engineer_name, stock_name, quantity, status)
+            )
             conn.commit()
-            return jsonify(updated_stock), 201
-            
-        elif request.method == 'DELETE':
-            data = request.json
-            name = data.get('name')
-            if not name:
-                return jsonify({'message': 'Name required'}), 400
-            
-            cursor.execute("DELETE FROM stocks WHERE name=%s RETURNING *", (name,))
-            deleted_stock = cursor.fetchone()
-            if deleted_stock:
-                conn.commit()
-                return jsonify({'message': 'Stock deleted', 'stock': deleted_stock}), 200
-            else:
-                conn.rollback()
-                return jsonify({'message': 'Stock not found'}), 404
-                
-    except psycopg2.IntegrityError:
-        conn.rollback()
-        return jsonify({'message': 'Stock name already exists'}), 409
-    except Exception as e:
-        print(f"Error managing stocks: {e}")
-        conn.rollback()
-        return jsonify({'message': 'An error occurred'}), 500
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+            return jsonify({'message': 'Request submitted successfully'}), 201
 
-@app.route('/api/requests', methods=['GET', 'POST'])
-def manage_requests():
-    conn = get_db_connection()
-    if not conn:
-        return jsonify({'message': 'Database connection error'}), 500
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-    try:
-        if request.method == 'GET':
+        elif request.method == 'GET':
             cursor.execute("SELECT * FROM requests ORDER BY requested_at DESC")
             requests = cursor.fetchall()
             return jsonify(requests)
-            
-        elif request.method == 'POST':
-            data = request.json
-            engineer_name = data.get('engineerName')
-            stock_name = data.get('stockName')
-            quantity = data.get('quantity')
-            
-            if not all([engineer_name, stock_name, quantity]):
-                return jsonify({'message': 'Missing data'}), 400
-            
-            cursor.execute("INSERT INTO requests (engineer_name, stock_name, quantity, status) VALUES (%s, %s, %s, 'Pending') RETURNING *", (engineer_name, stock_name, quantity))
-            new_request = cursor.fetchone()
-            conn.commit()
-            return jsonify(new_request), 201
-
     except Exception as e:
-        print(f"Error managing requests: {e}")
+        print(f"Error handling requests: {e}")
         conn.rollback()
         return jsonify({'message': 'An error occurred'}), 500
     finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+        cursor.close()
+        conn.close()
 
 @app.route('/api/requests/<int:id>', methods=['PUT', 'DELETE'])
 def update_request(id):
@@ -257,24 +190,16 @@ def update_request(id):
             req = cursor.fetchone()
             if not req:
                 return jsonify({'message': 'Request not found'}), 404
-                
-            if status == 'Received':
-                stock_name = req['stock_name']
-                qty = req['quantity']
-                
-                cursor.execute("SELECT * FROM stocks WHERE name=%s", (stock_name,))
-                stock = cursor.fetchone()
-                if stock and stock['quantity'] >= qty:
-                    cursor.execute("UPDATE stocks SET quantity=quantity-%s WHERE name=%s", (qty, stock_name))
-                    cursor.execute("UPDATE requests SET status='Completed', received_at=CURRENT_TIMESTAMP WHERE id=%s", (id,))
-                    cursor.execute("INSERT INTO usage_log (engineer_name, stock_name, quantity) VALUES (%s, %s, %s)", (req['engineer_name'], stock_name, qty))
-                else:
-                    return jsonify({'message': 'Not enough stock'}), 400
-                    
-            elif status == 'Sent':
-                cursor.execute("UPDATE requests SET status='Sent', sent_at=CURRENT_TIMESTAMP WHERE id=%s", (id,))
-            elif status in ['Accepted', 'Denied']:
+            
+            if status == 'Accepted':
+                cursor.execute("UPDATE requests SET status=%s, sent_at=CURRENT_TIMESTAMP WHERE id=%s", (status, id))
+            elif status == 'Denied':
                 cursor.execute("UPDATE requests SET status=%s WHERE id=%s", (status, id))
+            elif status == 'Received':
+                cursor.execute(
+                    "UPDATE requests SET status=%s, received_at=CURRENT_TIMESTAMP WHERE id=%s",
+                    ('Completed', id)
+                )
             else:
                 return jsonify({'message': 'Invalid status'}), 400
                 
@@ -296,30 +221,46 @@ def update_request(id):
         conn.rollback()
         return jsonify({'message': 'An error occurred'}), 500
     finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+        cursor.close()
+        conn.close()
 
-@app.route('/api/usage_log', methods=['GET'])
-def get_usage_log():
+@app.route('/api/usage_log', methods=['POST', 'GET'])
+def handle_usage_log():
     conn = get_db_connection()
     if not conn:
         return jsonify({'message': 'Database connection error'}), 500
     cursor = conn.cursor(cursor_factory=RealDictCursor)
-
     try:
-        cursor.execute("SELECT * FROM usage_log ORDER BY used_at DESC")
-        logs = cursor.fetchall()
-        return jsonify(logs)
+        if request.method == 'POST':
+            data = request.json
+            engineer_name = data.get('engineer_name')
+            stock_name = data.get('stock_name')
+            quantity = data.get('quantity')
+            
+            if not all([engineer_name, stock_name, quantity]):
+                return jsonify({'message': 'Missing data'}), 400
+
+            cursor.execute(
+                "INSERT INTO usage_log (engineer_name, stock_name, quantity) VALUES (%s, %s, %s)",
+                (engineer_name, stock_name, quantity)
+            )
+            conn.commit()
+            return jsonify({'message': 'Usage log added successfully'}), 201
+
+        elif request.method == 'GET':
+            cursor.execute("SELECT * FROM usage_log ORDER BY used_at DESC")
+            logs = cursor.fetchall()
+            return jsonify(logs)
     except Exception as e:
-        print(f"Error getting usage log: {e}")
+        print(f"Error handling usage log: {e}")
+        conn.rollback()
         return jsonify({'message': 'An error occurred'}), 500
     finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+        cursor.close()
+        conn.close()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # Call the database initialization function here for local development.
+    # It is safe to run multiple times because of the "IF NOT EXISTS" clauses.
+    init_db()
+    app.run(debug=True)
