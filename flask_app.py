@@ -259,8 +259,7 @@ def handle_usage_log():
         cursor.close()
         conn.close()
 
+# This is the correct way to run the app for local development.
+# The init_db() call will be handled by the setup_db.py script on Render.
 if __name__ == '__main__':
-    # Call the database initialization function here for local development.
-    # It is safe to run multiple times because of the "IF NOT EXISTS" clauses.
-    init_db()
     app.run(debug=True)
