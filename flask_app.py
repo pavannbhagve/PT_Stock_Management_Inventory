@@ -15,83 +15,16 @@ app.config['SECRET_KEY'] = SECRET_KEY
 
 # PostgreSQL connection
 def get_db_connection():
+    if not DATABASE_URL:
+        print("DATABASE_URL environment variable is not set!")
+        return None
     try:
         conn = psycopg2.connect(DATABASE_URL)
+        print("Database connection successful.")
         return conn
     except Exception as e:
         print(f"Database connection failed: {e}")
         return None
-
-# Initialize DB and populate with default user
-def init_db():
-    conn = get_db_connection()
-    if not conn:
-        return
-    
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-
-    try:
-        # Create tables if they don't exist
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS hods (
-                id SERIAL PRIMARY KEY,
-                username TEXT NOT NULL UNIQUE,
-                password TEXT NOT NULL
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS engineers (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL UNIQUE,
-                password TEXT NOT NULL
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS stocks (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL UNIQUE,
-                quantity INTEGER NOT NULL
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS requests (
-                id SERIAL PRIMARY KEY,
-                engineer_name TEXT NOT NULL,
-                stock_name TEXT NOT NULL,
-                quantity INTEGER NOT NULL,
-                status TEXT NOT NULL,
-                requested_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                sent_at TIMESTAMP WITH TIME ZONE,
-                received_at TIMESTAMP WITH TIME ZONE
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS usage_log (
-                id SERIAL PRIMARY KEY,
-                engineer_name TEXT NOT NULL,
-                stock_name TEXT NOT NULL,
-                quantity INTEGER NOT NULL,
-                used_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        # Check if default HOD exists, if not, create one
-        cursor.execute("SELECT * FROM hods WHERE username = 'admin'")
-        if cursor.fetchone() is None:
-            hashed_password = generate_password_hash("password")
-            cursor.execute("INSERT INTO hods (username, password) VALUES (%s, %s)", ('admin', hashed_password))
-            print("Default HOD 'admin' created.")
-            
-        conn.commit()
-    except Exception as e:
-        print(f"Failed to initialize database: {e}")
-        conn.rollback()
-    finally:
-        cursor.close()
-        conn.close()
-
-# Initial database setup
-init_db()
 
 @app.route('/')
 def index():
@@ -126,8 +59,10 @@ def login():
         print(f"Login error: {e}")
         return jsonify({'message': 'An error occurred during login'}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 @app.route('/api/hods', methods=['POST'])
 def add_hod():
@@ -157,8 +92,10 @@ def add_hod():
         conn.rollback()
         return jsonify({'message': 'An error occurred'}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 @app.route('/api/engineers', methods=['GET', 'POST', 'DELETE'])
 def manage_engineers():
@@ -209,8 +146,10 @@ def manage_engineers():
         conn.rollback()
         return jsonify({'message': 'An error occurred'}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 @app.route('/api/stocks', methods=['GET', 'POST', 'DELETE'])
 def manage_stocks():
@@ -260,8 +199,10 @@ def manage_stocks():
         conn.rollback()
         return jsonify({'message': 'An error occurred'}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 @app.route('/api/requests', methods=['GET', 'POST'])
 def manage_requests():
@@ -295,8 +236,10 @@ def manage_requests():
         conn.rollback()
         return jsonify({'message': 'An error occurred'}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 @app.route('/api/requests/<int:id>', methods=['PUT', 'DELETE'])
 def update_request(id):
@@ -353,8 +296,10 @@ def update_request(id):
         conn.rollback()
         return jsonify({'message': 'An error occurred'}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 @app.route('/api/usage_log', methods=['GET'])
 def get_usage_log():
@@ -371,8 +316,10 @@ def get_usage_log():
         print(f"Error getting usage log: {e}")
         return jsonify({'message': 'An error occurred'}), 500
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
