@@ -22,6 +22,7 @@ else:
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
+
 # --------------------
 # Models
 # --------------------
@@ -100,6 +101,20 @@ def ensure_columns_and_defaults():
     inspector = inspect(db.engine)
     dialect = db.engine.dialect.name
 
+    # Rename old 'engineer' columns to 'engineer_id'
+    tables_to_fix = ["stock_usage", "dispatch", "emergency_request", "personal_stock"]
+    for table in tables_to_fix:
+        if inspector.has_table(table):
+            columns = {c['name'] for c in inspector.get_columns(table)}
+            if "engineer" in columns and "engineer_id" not in columns:
+                try:
+                    db.session.execute(text(f'ALTER TABLE "{table}" RENAME COLUMN engineer TO engineer_id;'))
+                    db.session.commit()
+                    app.logger.info(f"Renamed column 'engineer' → 'engineer_id' in {table}")
+                except Exception as e:
+                    app.logger.warning(f"Failed renaming column in {table}: {e}")
+
+    # Add missing timestamp columns
     expected = {
         "user": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
         "stock": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
@@ -130,6 +145,7 @@ def ensure_columns_and_defaults():
 
 with app.app_context():
     ensure_columns_and_defaults()
+    # default HOD
     if not User.query.filter_by(role="hod").first():
         hod = User(username="PTESPL", password=generate_password_hash("ptespl@123"), role="hod")
         db.session.add(hod)
@@ -142,13 +158,11 @@ with app.app_context():
 # --------------------
 @app.template_filter("dtfmt")
 def format_datetime(value):
-    if not value:
-        return "-"
-    return value.strftime("%d-%m-%Y %I:%M:%S %p")
+    return value.strftime("%d-%m-%Y %I:%M:%S %p") if value else "-"
 
 
 # --------------------
-# Authentication
+# Routes: Auth & Dashboard
 # --------------------
 @app.route("/", methods=["GET", "POST"])
 @app.route("/login", methods=["GET", "POST"])
@@ -173,9 +187,6 @@ def logout():
     return redirect(url_for("login"))
 
 
-# --------------------
-# Dashboard
-# --------------------
 @app.route("/dashboard")
 def dashboard():
     if "user_id" not in session:
@@ -201,8 +212,7 @@ def dashboard():
             personal_stocks=personal_stocks,
             usage_logs=usage_logs,
         )
-
-    elif role == "engineer":
+    else:
         dispatches = Dispatch.query.filter_by(engineer_id=user_id).order_by(Dispatch.created_at.desc()).all()
         emergencies = EmergencyRequest.query.filter_by(engineer_id=user_id).order_by(EmergencyRequest.created_at.desc()).all()
         personal_stocks = PersonalStock.query.filter_by(engineer_id=user_id).order_by(PersonalStock.created_at.desc()).all()
@@ -217,22 +227,17 @@ def dashboard():
             personal_stocks=personal_stocks,
             usage_logs=usage_logs,
         )
-    else:
-        return "Unauthorized", 403
 
 
 # --------------------
-# HOD: stock CRUD
+# HOD CRUD routes
 # --------------------
 @app.route("/add_stock", methods=["POST"])
 def add_stock():
     if session.get("role") != "hod":
         return "Unauthorized", 403
     name = request.form.get("name", "").strip()
-    try:
-        qty = int(request.form.get("quantity", 0))
-    except ValueError:
-        qty = 0
+    qty = int(request.form.get("quantity", 0) or 0)
     if not name:
         flash("Stock name required", "danger")
         return redirect(url_for("dashboard"))
@@ -247,13 +252,9 @@ def add_stock():
 def edit_stock():
     if session.get("role") != "hod":
         return "Unauthorized", 403
-    sid = int(request.form.get("stock_id"))
-    stock = Stock.query.get_or_404(sid)
+    stock = Stock.query.get_or_404(int(request.form.get("stock_id")))
     stock.name = request.form.get("name", stock.name)
-    try:
-        stock.quantity = int(request.form.get("quantity", stock.quantity))
-    except ValueError:
-        pass
+    stock.quantity = int(request.form.get("quantity", stock.quantity) or stock.quantity)
     db.session.commit()
     flash("Stock updated", "success")
     return redirect(url_for("dashboard"))
@@ -270,9 +271,6 @@ def delete_stock(stock_id):
     return redirect(url_for("dashboard"))
 
 
-# --------------------
-# HOD: manage engineers
-# --------------------
 @app.route("/add_engineer", methods=["POST"])
 def add_engineer():
     if session.get("role") != "hod":
@@ -307,91 +305,60 @@ def delete_engineer(user_id):
 
 
 # --------------------
-# HOD: dispatch stock to engineer
+# Dispatch & Emergency routes
 # --------------------
 @app.route("/dispatch", methods=["POST"])
 def dispatch():
     if session.get("role") != "hod":
         return "Unauthorized", 403
-    try:
-        stock_id = int(request.form.get("stock_id"))
-        engineer_id = int(request.form.get("engineer_id"))
-    except (TypeError, ValueError):
-        flash("Select stock and engineer", "danger")
-        return redirect(url_for("dashboard"))
-
+    stock_id = int(request.form.get("stock_id"))
+    engineer_id = int(request.form.get("engineer_id"))
     docket = request.form.get("docket_number", "").strip()
     stock = Stock.query.get_or_404(stock_id)
-    if stock.quantity <= 0:
-        flash("Stock not available", "warning")
-        return redirect(url_for("dashboard"))
-
-    try:
-        qty_sent = int(request.form.get("dispatch_qty", 1))
-    except ValueError:
-        qty_sent = 1
-
-    if qty_sent <= 0 or qty_sent > stock.quantity:
+    qty_sent = int(request.form.get("dispatch_qty", 1) or 1)
+    if stock.quantity < qty_sent or qty_sent <= 0:
         flash("Invalid quantity for dispatch", "danger")
         return redirect(url_for("dashboard"))
-
     stock.quantity -= qty_sent
-    dispatch = Dispatch(
-        stock_id=stock_id,
-        engineer_id=engineer_id,
-        docket_number=f"{docket} (qty:{qty_sent})",
-        status="in_transit",
-    )
-    db.session.add(dispatch)
+    disp = Dispatch(stock_id=stock_id, engineer_id=engineer_id, docket_number=f"{docket} (qty:{qty_sent})")
+    db.session.add(disp)
     db.session.commit()
     flash("Dispatched", "success")
     return redirect(url_for("dashboard"))
 
 
-# --------------------
-# HOD: approve/reject emergency
-# --------------------
 @app.route("/update_emergency/<int:req_id>/<string:action>")
 def update_emergency(req_id, action):
     if session.get("role") != "hod":
         return "Unauthorized", 403
     req = EmergencyRequest.query.get_or_404(req_id)
-    if action == "approve":
-        req.status = "approved"
-    elif action == "reject":
-        req.status = "rejected"
+    req.status = "approved" if action == "approve" else "rejected"
     db.session.commit()
     flash("Emergency " + req.status, "info")
     return redirect(url_for("dashboard"))
 
 
-# --------------------
-# Engineer: receive dispatch
-# --------------------
 @app.route("/receive/<int:dispatch_id>")
 def receive(dispatch_id):
     if session.get("role") != "engineer":
         return "Unauthorized", 403
-    dispatch = Dispatch.query.get_or_404(dispatch_id)
-    if dispatch.engineer_id != session.get("user_id"):
+    disp = Dispatch.query.get_or_404(dispatch_id)
+    if disp.engineer_id != session.get("user_id"):
         return "Unauthorized", 403
-    dispatch.status = "received"
-    dispatch.received_at = datetime.utcnow()
+    disp.status = "received"
+    disp.received_at = datetime.utcnow()
     db.session.commit()
     flash("Marked as received", "success")
     return redirect(url_for("dashboard"))
 
 
-# --------------------
-# Engineer: emergency / normal requests
-# --------------------
 @app.route("/emergency", methods=["POST"])
 def emergency():
     if session.get("role") != "engineer":
         return "Unauthorized", 403
     item_name = request.form.get("item_name", "").strip()
     if not item_name:
-        flash("Enter item for emergency", "danger")
+        flash("Enter item", "danger")
         return redirect(url_for("dashboard"))
     req = EmergencyRequest(engineer_id=session.get("user_id"), item_name=item_name)
     db.session.add(req)
@@ -405,12 +372,9 @@ def request_stock():
     if session.get("role") != "engineer":
         return "Unauthorized", 403
     stock_name = request.form.get("stock_name", "").strip()
-    try:
-        qty = int(request.form.get("quantity", 0))
-    except ValueError:
-        qty = 0
+    qty = int(request.form.get("quantity", 0) or 0)
     if not stock_name or qty <= 0:
-        flash("Stock & positive quantity required", "danger")
+        flash("Stock & quantity required", "danger")
         return redirect(url_for("dashboard"))
     req = EmergencyRequest(engineer_id=session.get("user_id"), item_name=f"REQ:{stock_name} (qty:{qty})")
     db.session.add(req)
@@ -419,18 +383,12 @@ def request_stock():
     return redirect(url_for("dashboard"))
 
 
-# --------------------
-# Engineer: add/update personal stock
-# --------------------
 @app.route("/personal_stock", methods=["POST"])
 def personal_stock():
     if session.get("role") != "engineer":
         return "Unauthorized", 403
     name = request.form.get("stock_name", "").strip()
-    try:
-        qty = int(request.form.get("quantity", 0))
-    except ValueError:
-        qty = 0
+    qty = int(request.form.get("quantity", 0) or 0)
     if not name:
         flash("Stock name required", "danger")
         return redirect(url_for("dashboard"))
@@ -445,41 +403,26 @@ def personal_stock():
     return redirect(url_for("dashboard"))
 
 
-# --------------------
-# Stock usage log
-# --------------------
 @app.route("/add_usage", methods=["POST"])
 def add_usage():
     if session.get("role") != "engineer":
         return "Unauthorized", 403
     name = request.form.get("stock_name", "").strip()
-    try:
-        qty_used = int(request.form.get("quantity_used", 0))
-    except ValueError:
-        qty_used = 0
-    site_name = request.form.get("site_name", "")
+    qty_used = int(request.form.get("quantity_used", 0) or 0)
+    site = request.form.get("site_name", "")
     reason = request.form.get("reason", "")
     amc = request.form.get("amc_cmc", "")
     if not name or qty_used <= 0:
-        flash("Stock name and positive quantity required", "danger")
+        flash("Stock & quantity required", "danger")
         return redirect(url_for("dashboard"))
-    usage = StockUsage(
-        engineer_id=session.get("user_id"),
-        stock_name=name,
-        quantity_used=qty_used,
-        site_name=site_name,
-        reason=reason,
-        amc_cmc=amc
-    )
+    usage = StockUsage(engineer_id=session.get("user_id"), stock_name=name, quantity_used=qty_used,
+                       site_name=site, reason=reason, amc_cmc=amc)
     db.session.add(usage)
     db.session.commit()
     flash("Usage logged", "success")
     return redirect(url_for("dashboard"))
 
 
-# --------------------
-# Quick API
-# --------------------
 @app.route("/api/stock/<int:stock_id>")
 def api_stock(stock_id):
     s = Stock.query.get_or_404(stock_id)
