@@ -2,262 +2,143 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Dashboard - PT Stock Management Inventory</title>
+  <title>PT Stock Management Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3">
-  <a class="navbar-brand" href="#">PT Inventory</a>
-  <div class="ms-auto text-light">
-    Hi, {{ session.get('username') or '' }}
-    <a href="{{ url_for('logout') }}" class="btn btn-sm btn-secondary ms-3">Logout</a>
-  </div>
-</nav>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="{{ url_for('dashboard') }}">PT Stock Inventory</a>
+      <div class="collapse navbar-collapse">
+        <ul class="navbar-nav ms-auto">
+          {% if session.get('user_id') %}
+            <li class="nav-item">
+              <span class="nav-link text-light">Hi, {{ username }}</span>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+            </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </nav>
 
-<div class="container py-4">
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, msg in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-          {{ msg }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
+  <div class="container mt-4">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
 
-  {% if role=='hod' %}
-  <!-- ================= HOD DASHBOARD ================= -->
-  <h3>Stocks</h3>
-  <button class="btn btn-success mb-2" data-bs-toggle="modal" data-bs-target="#addStockModal">Add Stock</button>
-  <table class="table table-bordered">
-    <thead><tr><th>Name</th><th>Qty</th><th>Actions</th></tr></thead>
-    <tbody>
-      {% for stock in stocks %}
-      <tr>
-        <td>{{ stock.name }}</td>
-        <td>{{ stock.quantity }}</td>
-        <td>
-          <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editStockModal{{ stock.id }}">Edit</button>
-          <form method="GET" action="{{ url_for('delete_stock', stock_id=stock.id) }}" style="display:inline;">
-            <button class="btn btn-sm btn-danger">Delete</button>
+    {% if role == 'hod' %}
+      <h3>HOD Dashboard</h3>
+      <div class="row">
+        <div class="col-md-6">
+          <h5>Stock</h5>
+          <table class="table table-bordered table-sm">
+            <thead>
+              <tr><th>Name</th><th>Quantity</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              {% for s in stocks %}
+                <tr>
+                  <td>{{ s.name }}</td>
+                  <td>{{ s.quantity }}</td>
+                  <td>
+                    <form class="d-inline" method="POST" action="{{ url_for('edit_stock') }}">
+                      <input type="hidden" name="stock_id" value="{{ s.id }}">
+                      <input type="text" name="name" placeholder="Name" required>
+                      <input type="number" name="quantity" placeholder="Qty" required>
+                      <button class="btn btn-sm btn-success">Edit</button>
+                    </form>
+                    <a class="btn btn-sm btn-danger" href="{{ url_for('delete_stock', stock_id=s.id) }}">Delete</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+
+          <h6>Add Stock</h6>
+          <form method="POST" action="{{ url_for('add_stock') }}">
+            <input type="text" name="name" placeholder="Stock name" required>
+            <input type="number" name="quantity" placeholder="Quantity" required>
+            <button class="btn btn-sm btn-primary">Add</button>
           </form>
-        </td>
-      </tr>
+        </div>
 
-      <!-- Edit Stock Modal -->
-      <div class="modal fade" id="editStockModal{{ stock.id }}" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-          <form method="POST" action="{{ url_for('edit_stock') }}">
-            <input type="hidden" name="stock_id" value="{{ stock.id }}">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title">Edit Stock</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-              </div>
-              <div class="modal-body">
-                <div class="mb-2"><label>Name</label><input type="text" name="name" class="form-control" value="{{ stock.name }}" required></div>
-                <div class="mb-2"><label>Quantity</label><input type="number" name="quantity" class="form-control" value="{{ stock.quantity }}" required></div>
-              </div>
-              <div class="modal-footer">
-                <button class="btn btn-primary">Save</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-              </div>
-            </div>
+        <div class="col-md-6">
+          <h5>Engineers</h5>
+          <table class="table table-bordered table-sm">
+            <thead><tr><th>Username</th><th>Actions</th></tr></thead>
+            <tbody>
+              {% for e in engineers %}
+                <tr>
+                  <td>{{ e.username }}</td>
+                  <td>
+                    {% if e.role != 'hod' %}
+                      <a class="btn btn-sm btn-danger" href="{{ url_for('delete_engineer', user_id=e.id) }}">Delete</a>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+
+          <h6>Add Engineer</h6>
+          <form method="POST" action="{{ url_for('add_engineer') }}">
+            <input type="text" name="username" placeholder="Username" required>
+            <input type="password" name="password" placeholder="Password" required>
+            <button class="btn btn-sm btn-primary">Add</button>
           </form>
         </div>
       </div>
 
-      {% endfor %}
-    </tbody>
-  </table>
+      <h5 class="mt-4">Dispatches</h5>
+      <table class="table table-bordered table-sm">
+        <thead><tr><th>Docket</th><th>Stock</th><th>Engineer</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for d in dispatches %}
+            <tr>
+              <td>{{ d.docket_number }}</td>
+              <td>{{ d.stock.name }}</td>
+              <td>{{ d.engineer.username }}</td>
+              <td>{{ d.status }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
 
-  <!-- Add Stock Modal -->
-  <div class="modal fade" id="addStockModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <form method="POST" action="{{ url_for('add_stock') }}">
-        <div class="modal-content">
-          <div class="modal-header"><h5 class="modal-title">Add Stock</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-          <div class="modal-body">
-            <div class="mb-2"><label>Name</label><input type="text" name="name" class="form-control" required></div>
-            <div class="mb-2"><label>Quantity</label><input type="number" name="quantity" class="form-control" required></div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-primary">Save</button>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          </div>
-        </div>
-      </form>
-    </div>
+    {% elif role == 'engineer' %}
+      <h3>Engineer Dashboard</h3>
+      <h5>My Dispatches</h5>
+      <table class="table table-bordered table-sm">
+        <thead><tr><th>Docket</th><th>Stock</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for d in dispatches %}
+            <tr>
+              <td>{{ d.docket_number }}</td>
+              <td>{{ d.stock.name }}</td>
+              <td>{{ d.status }}</td>
+              <td>
+                {% if d.status != 'received' %}
+                  <a class="btn btn-sm btn-success" href="{{ url_for('receive', dispatch_id=d.id) }}">Receive</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
   </div>
 
-  <h3>Engineers</h3>
-  <button class="btn btn-success mb-2" data-bs-toggle="modal" data-bs-target="#addEngineerModal">Add Engineer</button>
-  <table class="table table-bordered">
-    <thead><tr><th>Username</th><th>Actions</th></tr></thead>
-    <tbody>
-      {% for eng in engineers %}
-      <tr>
-        <td>{{ eng.username }}</td>
-        <td>
-          {% if eng.role!='hod' %}
-          <a href="{{ url_for('delete_engineer', user_id=eng.id) }}" class="btn btn-sm btn-danger">Delete</a>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <!-- Add Engineer Modal -->
-  <div class="modal fade" id="addEngineerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <form method="POST" action="{{ url_for('add_engineer') }}">
-        <div class="modal-content">
-          <div class="modal-header"><h5 class="modal-title">Add Engineer</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-          <div class="modal-body">
-            <div class="mb-2"><label>Username</label><input type="text" name="username" class="form-control" required></div>
-            <div class="mb-2"><label>Password</label><input type="password" name="password" class="form-control" required></div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-primary">Save</button>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <h3>Dispatches</h3>
-  <table class="table table-bordered">
-    <thead><tr><th>Stock</th><th>Engineer</th><th>Docket</th><th>Status</th></tr></thead>
-    <tbody>
-      {% for d in dispatches %}
-      <tr>
-        <td>{{ d.stock.name }}</td>
-        <td>{{ d.engineer.username }}</td>
-        <td>{{ d.docket_number }}</td>
-        <td>{{ d.status }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <h3>Emergency Requests</h3>
-  <table class="table table-bordered">
-    <thead><tr><th>Engineer</th><th>Item</th><th>Status</th><th>Actions</th></tr></thead>
-    <tbody>
-      {% for e in emergencies %}
-      <tr>
-        <td>{{ e.engineer.username }}</td>
-        <td>{{ e.item_name }}</td>
-        <td>{{ e.status }}</td>
-        <td>
-          {% if e.status=='pending' %}
-          <a href="{{ url_for('update_emergency', req_id=e.id, action='approve') }}" class="btn btn-sm btn-success">Approve</a>
-          <a href="{{ url_for('update_emergency', req_id=e.id, action='reject') }}" class="btn btn-sm btn-danger">Reject</a>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <h3>Usage Logs</h3>
-  <table class="table table-bordered">
-    <thead><tr><th>Engineer</th><th>Stock</th><th>Qty Used</th><th>Site</th><th>Reason</th><th>AMC/CMC</th></tr></thead>
-    <tbody>
-      {% for u in usage_logs %}
-      <tr>
-        <td>{{ u.engineer.username }}</td>
-        <td>{{ u.stock_name }}</td>
-        <td>{{ u.quantity_used }}</td>
-        <td>{{ u.site_name }}</td>
-        <td>{{ u.reason }}</td>
-        <td>{{ u.amc_cmc }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  {% elif role=='engineer' %}
-  <!-- ================= ENGINEER DASHBOARD ================= -->
-  <h3>My Dispatches</h3>
-  <table class="table table-bordered">
-    <thead><tr><th>Stock</th><th>Docket</th><th>Status</th><th>Actions</th></tr></thead>
-    <tbody>
-      {% for d in dispatches %}
-      <tr>
-        <td>{{ d.stock.name }}</td>
-        <td>{{ d.docket_number }}</td>
-        <td>{{ d.status }}</td>
-        <td>
-          {% if d.status=='in_transit' %}
-          <a href="{{ url_for('receive', dispatch_id=d.id) }}" class="btn btn-sm btn-success">Mark Received</a>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <h3>Emergency / Requests</h3>
-  <button class="btn btn-primary mb-2" data-bs-toggle="modal" data-bs-target="#newEmergencyModal">New Request</button>
-  <table class="table table-bordered">
-    <thead><tr><th>Item</th><th>Status</th></tr></thead>
-    <tbody>
-      {% for e in emergencies %}
-      <tr><td>{{ e.item_name }}</td><td>{{ e.status }}</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <!-- New Emergency Modal -->
-  <div class="modal fade" id="newEmergencyModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <form method="POST" action="{{ url_for('emergency') }}">
-        <div class="modal-content">
-          <div class="modal-header"><h5 class="modal-title">Emergency / Stock Request</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-          <div class="modal-body">
-            <div class="mb-2"><label>Item Name</label><input type="text" name="item_name" class="form-control" required></div>
-          </div>
-          <div class="modal-footer"><button class="btn btn-primary">Submit</button><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button></div>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <h3>My Personal Stock</h3>
-  <button class="btn btn-success mb-2" data-bs-toggle="modal" data-bs-target="#personalStockModal">Add / Update Stock</button>
-  <table class="table table-bordered">
-    <thead><tr><th>Stock</th><th>Quantity</th></tr></thead>
-    <tbody>
-      {% for p in personal_stocks %}
-      <tr><td>{{ p.stock_name }}</td><td>{{ p.quantity }}</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <!-- Personal Stock Modal -->
-  <div class="modal fade" id="personalStockModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <form method="POST" action="{{ url_for('personal_stock') }}">
-        <div class="modal-content">
-          <div class="modal-header"><h5 class="modal-title">Add / Update Personal Stock</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-          <div class="modal-body">
-            <div class="mb-2"><label>Stock Name</label><input type="text" name="stock_name" class="form-control" required></div>
-            <div class="mb-2"><label>Quantity</label><input type="number" name="quantity" class="form-control" required></div>
-          </div>
-          <div class="modal-footer"><button class="btn btn-primary">Save</button><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button></div>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  {% endif %}
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
