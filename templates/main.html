@@ -1,170 +1,162 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-<meta charset="utf-8">
-<title>PT Stock Management Inventory</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Stock Inventory</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
 <body>
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    <div class="container mt-3">
-      {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show">
-          {{ message }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-      {% endfor %}
-    </div>
-  {% endif %}
-{% endwith %}
-
-{% if login_page %}
-<div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-5">
-      <div class="card p-4">
-        <h4 class="mb-3 text-center">Sign in</h4>
-        <form method="POST">
-          <div class="mb-2"><input class="form-control" name="username" placeholder="Username" required></div>
-          <div class="mb-2"><input class="form-control" type="password" name="password" placeholder="Password" required></div>
-          <div class="d-grid"><button class="btn btn-primary">Sign in</button></div>
-          <div class="mt-3 small text-muted text-center">
-            Default HOD: <strong>PTESPL</strong> / ptespl@123
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-{% else %}
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="#">PT Inventory</a>
-    <div class="collapse navbar-collapse">
-      <ul class="navbar-nav ms-auto">
-        <li class="nav-item"><span class="nav-link text-light">Hi, {{ user.username }} ({{ user.role }})</span></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Logout</a></li>
-      </ul>
-    </div>
-  </div>
-</nav>
-<div class="container my-4">
-  <h3>Dashboard</h3>
-
-  {% if user.role == 'HOD' %}
-  <!-- HOD: Stock CRUD -->
-  <h5 class="mt-4">Manage Stock</h5>
-  <form method="POST" action="{{ url_for('add_stock') }}" class="row g-2 mb-3">
-    <div class="col"><input class="form-control" name="stock_name" placeholder="Stock Name" required></div>
-    <div class="col"><input class="form-control" name="quantity" type="number" placeholder="Quantity" required></div>
-    <div class="col"><button class="btn btn-success">Add Stock</button></div>
-  </form>
-  <table class="table table-bordered">
-    <tr><th>ID</th><th>Name</th><th>Qty</th><th>Actions</th></tr>
-    {% for s in stocks %}
-    <tr>
-      <td>{{ s.id }}</td>
-      <td>{{ s.name }}</td>
-      <td>{{ s.quantity }}</td>
-      <td>
-        <form method="POST" action="{{ url_for('update_stock', id=s.id) }}" class="d-inline">
-          <input name="stock_name" value="{{ s.name }}" hidden>
-          <input name="quantity" value="{{ s.quantity }}" hidden>
-          <button class="btn btn-primary btn-sm">Edit</button>
-        </form>
-        <a href="{{ url_for('delete_stock', id=s.id) }}" class="btn btn-danger btn-sm">Delete</a>
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
-
-  <!-- Dispatch -->
-  <h5 class="mt-4">Dispatch Stock</h5>
-  <form method="POST" action="{{ url_for('dispatch_stock') }}" class="row g-2">
-    <div class="col">
-      <select class="form-select" name="stock_id">
-        {% for s in stocks %}
-          <option value="{{ s.id }}">{{ s.name }} ({{ s.quantity }})</option>
+<div class="container mt-4">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
         {% endfor %}
-      </select>
-    </div>
-    <div class="col">
-      <select class="form-select" name="engineer_id">
-        {% for e in engineers %}
-          <option value="{{ e.id }}">{{ e.username }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col"><input class="form-control" name="docket_number" placeholder="Docket Number"></div>
-    <div class="col"><button class="btn btn-warning">Dispatch</button></div>
-  </form>
-
-  <!-- Emergency Requests -->
-  <h5 class="mt-4">Emergency Requests</h5>
-  <table class="table table-bordered">
-    <tr><th>ID</th><th>Stock Name</th><th>Engineer</th><th>Status</th><th>Action</th></tr>
-    {% for e in emergencies %}
-    <tr>
-      <td>{{ e.id }}</td>
-      <td>{{ e.stock_name }}</td>
-      <td>{{ e.engineer_id }}</td>
-      <td>{{ e.status }}</td>
-      <td>
-        {% if e.status == 'Pending' %}
-        <form method="POST" action="{{ url_for('process_emergency', id=e.id, action='accept') }}" class="d-inline">
-          <button class="btn btn-success btn-sm">Accept</button>
-        </form>
-        <form method="POST" action="{{ url_for('process_emergency', id=e.id, action='deny') }}" class="d-inline">
-          <button class="btn btn-danger btn-sm">Deny</button>
-        </form>
-        {% else %}
-          {{ e.status }}
-        {% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
-
-  {% elif user.role == 'Engineer' %}
-  <!-- Engineer: View stock, dispatches, request emergency -->
-  <h5 class="mt-4">Available Stock</h5>
-  <table class="table table-bordered">
-    <tr><th>Name</th><th>Qty</th></tr>
-    {% for s in stocks %}
-    <tr><td>{{ s.name }}</td><td>{{ s.quantity }}</td></tr>
-    {% endfor %}
-  </table>
-
-  <h5 class="mt-4">Your Dispatches</h5>
-  <table class="table table-bordered">
-    <tr><th>Stock</th><th>Docket</th><th>Status</th><th>Actions</th></tr>
-    {% for d in dispatches %}
-      {% if d.engineer_id == user.id %}
-        <tr>
-          <td>{{ d.stock_id }}</td>
-          <td>{{ d.docket_number }}</td>
-          <td>{{ d.status }}</td>
-          <td>
-            {% if d.status == 'In Transit' %}
-            <a href="{{ url_for('receive_dispatch', id=d.id) }}" class="btn btn-success btn-sm">Mark Received</a>
-            {% endif %}
-          </td>
-        </tr>
       {% endif %}
-    {% endfor %}
-  </table>
+    {% endwith %}
 
-  <h5 class="mt-4">Request Emergency Stock</h5>
-  <form method="POST" action="{{ url_for('request_emergency') }}" class="row g-2">
-    <div class="col"><input class="form-control" name="stock_name" placeholder="Stock Name" required></div>
-    <div class="col"><button class="btn btn-primary">Request</button></div>
-  </form>
+    {% if login_page %}
+    <!-- Login Page -->
+    <div class="row justify-content-center">
+        <div class="col-md-4">
+            <h3>Login</h3>
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="mb-3">
+                    <input type="text" name="username" class="form-control" placeholder="Username" required>
+                </div>
+                <div class="mb-3">
+                    <input type="password" name="password" class="form-control" placeholder="Password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Login</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <h3>Welcome {{ user.username }} ({{ user.role }})</h3>
+    <a href="{{ url_for('logout') }}" class="btn btn-danger mb-3">Logout</a>
 
-  {% endif %}
+    {% if user.role == 'HOD' %}
+    <!-- HOD Dashboard -->
+    <h4>Stock Inventory</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr><th>Name</th><th>Qty</th><th>Description</th><th>Location</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+        {% for stock in stocks %}
+            <tr>
+                <td>{{ stock.name }}</td>
+                <td>{{ stock.quantity }}</td>
+                <td>{{ stock.description }}</td>
+                <td>{{ stock.location }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('delete_stock', stock_id=stock.id) }}" style="display:inline">
+                        <button class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <h5>Add Stock</h5>
+    <form method="POST" action="{{ url_for('add_stock') }}">
+        <input type="text" name="name" placeholder="Item Name" required>
+        <input type="number" name="quantity" placeholder="Quantity" required>
+        <input type="text" name="description" placeholder="Description">
+        <input type="text" name="location" placeholder="Location">
+        <button class="btn btn-primary btn-sm">Add</button>
+    </form>
+
+    <h4>Requests</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr><th>Engineer</th><th>Stock</th><th>Qty</th><th>Status</th><th>Courier</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+        {% for req in requests %}
+            <tr>
+                <td>{{ req.engineer_id }}</td>
+                <td>{{ req.stock.name }}</td>
+                <td>{{ req.quantity }}</td>
+                <td>{{ req.status }}</td>
+                <td>{{ req.courier_docket or '' }}</td>
+                <td>
+                    {% if req.status == 'Pending' %}
+                    <form method="POST" action="{{ url_for('process_request', req_id=req.id) }}">
+                        <input type="text" name="courier_docket" placeholder="Courier Docket">
+                        <button name="action" value="Approve" class="btn btn-sm btn-success">Approve</button>
+                        <button name="action" value="Reject" class="btn btn-sm btn-danger">Reject</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <h4>Operation Logs</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Stock</th><th>Qty</th><th>Location</th><th>Courier</th></tr>
+        </thead>
+        <tbody>
+        {% for log in logs %}
+            <tr>
+                <td>{{ log.timestamp }}</td>
+                <td>{{ log.user }}</td>
+                <td>{{ log.action }}</td>
+                <td>{{ log.stock_name or '' }}</td>
+                <td>{{ log.quantity or '' }}</td>
+                <td>{{ log.location or '' }}</td>
+                <td>{{ log.courier_docket or '' }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% else %}
+    <!-- Engineer Dashboard -->
+    <h4>Available Stock</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr><th>Name</th><th>Qty</th><th>Description</th><th>Location</th><th>Request</th></tr>
+        </thead>
+        <tbody>
+        {% for stock in stocks %}
+            <tr>
+                <td>{{ stock.name }}</td>
+                <td>{{ stock.quantity }}</td>
+                <td>{{ stock.description }}</td>
+                <td>{{ stock.location }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('request_stock', stock_id=stock.id) }}">
+                        <input type="number" name="quantity" placeholder="Qty" min="1" max="{{ stock.quantity }}" required>
+                        <button class="btn btn-sm btn-primary">Request</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <h4>My Requests</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr><th>Stock</th><th>Qty</th><th>Status</th><th>Courier Docket</th><th>Timestamp</th></tr>
+        </thead>
+        <tbody>
+        {% for req in requests %}
+            <tr>
+                <td>{{ req.stock.name }}</td>
+                <td>{{ req.quantity }}</td>
+                <td>{{ req.status }}</td>
+                <td>{{ req.courier_docket or '' }}</td>
+                <td>{{ req.timestamp }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    {% endif %}
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
