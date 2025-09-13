@@ -4,348 +4,428 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Stock Inventory - PT ESPL</title>
+  <title>PT ESPL - Stock Inventory</title>
   <style>
-    /* Basic styling - keep everything in one file */
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background:#f5f7fb; color:#222; }
-    header { background:#173a6a; color:white; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; }
-    .container { padding:20px; max-width:1200px; margin:20px auto; background:white; border-radius:8px; box-shadow: 0 6px 18px rgba(0,0,0,0.08);}
-    h1{ margin:0; font-size:20px }
-    .row{ display:flex; gap:20px; flex-wrap:wrap; }
-    .card{ flex:1 1 300px; border:1px solid #e1e7ef; padding:14px; border-radius:8px; background:#fff; }
-    label{ display:block; margin-top:8px; font-weight:600; }
-    input[type=text], input[type=number], select, textarea { width:100%; padding:8px; margin-top:6px; border-radius:6px; border:1px solid #ccd6e3; box-sizing:border-box; }
-    button { background:#173a6a; color:white; padding:8px 12px; border:none; border-radius:6px; cursor:pointer; margin-top:10px; }
-    button.secondary{ background:#4a90e2; }
-    .small { font-size:12px; color:#666; margin-top:6px; }
-    table { width:100%; border-collapse:collapse; margin-top:10px; }
-    th, td { padding:8px; border-bottom:1px solid #eef3f8; text-align:left; }
-    .muted { color:#666; font-size:13px; }
-    .flash { padding:10px; border-radius:6px; margin-bottom:12px; }
-    .flash.success { background:#e6f4ea; color:#1a7f3a; }
-    .flash.danger { background:#fdecea; color:#8a1f1f; }
-    .nav { display:flex; gap:8px; align-items:center; }
-    .badge { background:#e9eef9; padding:6px 10px; border-radius:999px; color:#123; font-weight:600; }
-    .tiny { font-size:12px; color:#777; }
-    .action-btn { padding:6px 8px; border-radius:6px; border:none; cursor:pointer; }
-    .action-accept { background:#2e8b57; color:white; }
-    .action-deny { background:#c0392b; color:white; }
-    .action-dispatch { background:#f39c12; color:white; }
-    .danger { color:#c0392b; }
-    .success { color:#2e8b57; }
-    .muted-row { background:#fbfcff; }
-    footer { text-align:center; color:#666; font-size:13px; padding:12px; margin-top:18px; }
-    .inline-form { display:flex; gap:8px; align-items:center; }
-    .inline-form input[type=text] { width:auto; min-width:180px; }
-    .searchbox { padding:8px; border-radius:6px; border:1px solid #ccd6e3; width:260px; }
+    /* Page layout and styling inspired by provided screenshots */
+    :root{
+      --nav-bg:#1f2937;
+      --accent: #6f42c1;
+      --card-bg: #ffffff;
+      --muted:#6b7280;
+      --success:#10b981;
+      --danger:#ef4444;
+      --shadow: 0 10px 25px rgba(15,23,42,0.08);
+    }
+    body{font-family: "Segoe UI", Roboto, Arial, sans-serif;margin:0;background:#f3f4f6;color:#111}
+    .topnav{background:var(--nav-bg);padding:12px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 2px 6px rgba(0,0,0,0.12)}
+    .nav-item{color:#fff;padding:10px 12px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px}
+    .nav-item:hover{background:rgba(255,255,255,0.04)}
+    .container{max-width:1100px;margin:20px auto;padding:12px}
+    h1{font-size:26px;text-align:center;margin:12px 0}
+    .grid{display:grid;grid-template-columns:1fr;gap:18px}
+    .card{background:var(--card-bg);border-radius:10px;padding:18px;box-shadow:var(--shadow);overflow:hidden}
+    .section-title{font-weight:700;margin-bottom:8px;color:#111}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:10px;border-bottom:1px solid #eef2f7;text-align:left;font-size:14px}
+    .table th{background:#f8fafc;font-weight:700;color:#374151}
+    label{display:block;font-size:13px;margin-top:8px;color:#374151}
+    input[type=text], input[type=number], select, textarea{padding:9px;border-radius:8px;border:1px solid #e6eef6;width:100%;box-sizing:border-box;font-size:14px}
+    .row{display:flex;gap:12px;align-items:center}
+    .btn{background:var(--accent);color:#fff;padding:9px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:700}
+    .btn.red{background:var(--danger)}
+    .btn.ghost{background:transparent;border:1px solid #e6eef6;color:#111}
+    .muted{color:var(--muted);font-size:13px}
+    .small{font-size:12px;color:#6b7280}
+    .success{color:var(--success);font-weight:700}
+    .danger{color:var(--danger);font-weight:700}
+    .top-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .badge{background:#f1f5f9;padding:6px 10px;border-radius:999px;font-weight:700;color:#0f172a}
+    .form-inline{display:flex;gap:8px;align-items:center}
+    .form-inline input, .form-inline select{width:auto}
+    .center{display:flex;justify-content:center;align-items:center}
+    .timestamp{font-size:12px;color:#9ca3af}
+    .actions form{display:inline-block;margin:0}
+    /* gentle colors for blocks like screenshots */
+    .block-green{background:#ecfdf5}
+    .block-yellow{background:#fffbeb}
+    .block-blue{background:#eff6ff}
+    .block-pink{background:#fff1f2}
+    .block-lilac{background:#faf5ff}
+    /* responsive */
+    @media (max-width:900px){
+      .row{flex-direction:column;align-items:stretch}
+      .top-row{flex-direction:column;align-items:flex-start}
+    }
   </style>
 </head>
 <body>
-<header>
-  <div>
-    <h1>PT ESPL • Stock Inventory</h1>
-    <div class="tiny">Logged as: {{ session.get('username') or 'Guest' }} {% if session.get('role') %} ({{ session.get('role') }}) {% endif %}</div>
-  </div>
-  <div class="nav">
-    <form action="{{ url_for('logout') }}" method="get" style="margin:0;"><button type="submit">Logout</button></form>
-  </div>
-</header>
-
-<div class="container">
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, msg in messages %}
-        <div class="flash {{ 'success' if category=='success' else 'danger' if category=='danger' else '' }}">{{ msg }}</div>
-      {% endfor %}
+  <div class="topnav">
+    <a class="nav-item" href="{{ url_for('engineer_dashboard') }}">Available Stock</a>
+    <a class="nav-item" href="{{ url_for('engineer_dashboard') }}">Stock Requests</a>
+    <a class="nav-item" href="{{ url_for('engineer_dashboard') }}">Urgent Request</a>
+    <a class="nav-item" href="{{ url_for('engineer_dashboard') }}">My Stock</a>
+    <a class="nav-item" href="{{ url_for('engineer_dashboard') }}">Stock Usage</a>
+    {% if session.get('user_id') %}
+      <div style="margin-left:auto;color:#fff;font-weight:700">Hi, {{ session.get('username') }}</div>
+      <a class="nav-item" style="margin-left:10px" href="{{ url_for('logout') }}">Logout</a>
     {% endif %}
-  {% endwith %}
+  </div>
 
-  {# If not logged in: show login form #}
-  {% if not session.get('user_id') %}
-    <div class="row">
-      <div class="card" style="max-width:420px; margin:auto;">
+  <div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div style="margin-bottom:12px;padding:10px;border-radius:8px;background:#f0fdf4;color:#065f46">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {# LOGIN #}
+    {% if not session.get('user_id') %}
+      <div class="card center" style="max-width:480px;margin:60px auto;flex-direction:column;">
         <h2>Login</h2>
-        <form method="post" action="{{ url_for('login') }}">
+        <form method="post" action="{{ url_for('login') }}" style="width:100%;">
           <label>Username</label>
-          <input type="text" name="username" required />
+          <input type="text" name="username" required>
           <label>Password</label>
-          <input type="password" name="password" required />
-          <button type="submit">Login</button>
+          <input type="password" name="password" required>
+          <div style="margin-top:12px" class="center">
+            <button class="btn" type="submit">Login</button>
+          </div>
         </form>
-        <p class="small">HOD default: <b>PTESPL</b> / <b>ptespl@123</b></p>
+        <p class="small" style="margin-top:10px">HOD default: <b>PTESPL</b> / <b>ptespl@123</b></p>
       </div>
-    </div>
-  {% endif %}
+    {% endif %}
 
-  {# HOD dashboard #}
-  {% if hod %}
-    <h2>HOD Dashboard</h2>
-    <div class="row">
-      <div class="card">
-        <h3>Manage Stocks</h3>
-        <form method="post" action="{{ url_for('create_stock') }}">
-          <label>Stock name</label>
-          <input type="text" name="name" placeholder="eg: Filter Cartridge" required />
-          <label>Quantity to add / set</label>
-          <input type="number" name="quantity" value="1" min="0" />
-          <label><input type="checkbox" name="is_emergency" value="1"> Mark as emergency item</label>
-          <button type="submit">Add / Update Stock</button>
-        </form>
+    {# ENGINEER DASHBOARD #}
+    {% if engineer %}
+      <h1>Engineer Dashboard</h1>
+      <div class="grid">
+        <div class="card block-green">
+          <div class="top-row">
+            <div>
+              <div class="section-title">Available Main Stock</div>
+              <div class="small muted">Stock maintained by HOD</div>
+            </div>
+            <div class="badge">As of server time</div>
+          </div>
+          <table class="table" style="margin-top:12px">
+            <thead>
+              <tr><th>STOCK NAME</th><th>QUANTITY</th></tr>
+            </thead>
+            <tbody>
+              {% for s in stocks %}
+                <tr><td>{{ s.name }}</td><td>{{ s.quantity }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
 
-        <h4 style="margin-top:12px;">Available Stocks</h4>
-        <table>
-          <thead><tr><th>Name</th><th>Qty</th><th>Type</th><th>Actions</th></tr></thead>
-          <tbody>
-          {% for s in stocks %}
-            <tr class="muted-row">
-              <td>{{ s.name }}</td>
-              <td>{{ s.quantity }}</td>
-              <td>{% if s.is_emergency %}Emergency{% else %}Normal{% endif %}</td>
-              <td>
-                <form method="post" action="{{ url_for('update_stock', stock_id=s.id) }}" style="display:inline-block;">
-                  <input type="hidden" name="name" value="{{ s.name }}" />
-                  <input type="number" name="quantity" value="{{ s.quantity }}" style="width:90px; display:inline-block;" />
-                  <button class="secondary" type="submit">Save</button>
-                </form>
-                <form method="post" action="{{ url_for('delete_stock', stock_id=s.id) }}" style="display:inline-block;" onsubmit="return confirm('Delete stock?');">
-                  <button type="submit" class="action-deny">Delete</button>
-                </form>
-              </td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
+        <div class="card block-yellow">
+          <div class="section-title">Stock Requests</div>
+          <form method="post" action="{{ url_for('api_create_request') }}">
+            <div class="row" style="align-items:center;">
+              <div style="flex:1">
+                <label>Stock Name</label>
+                <input id="stock_search" placeholder="type to filter or leave blank for urgent">
+                <select id="stock_select" name="stock_id" style="margin-top:8px">
+                  <option value="">-- Choose stock (or leave blank for urgent) --</option>
+                  {% for s in stocks %}
+                    <option value="{{ s.id }}" data-name="{{ s.name }}">{{ s.name }} ({{ s.quantity }})</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div style="width:120px">
+                <label>Quantity</label>
+                <input type="number" name="quantity" value="1" min="1">
+              </div>
+              <div style="flex:1">
+                <label>Remarks</label>
+                <input type="text" name="remarks" placeholder="optional remark">
+              </div>
+              <div style="width:140px;align-self:flex-end">
+                <button class="btn" type="submit">Send Request</button>
+              </div>
+            </div>
+            <div style="margin-top:8px">
+              <label>Urgent / Emergency stock name (if not present above)</label>
+              <input type="text" name="emergency_text" placeholder="Urgent stock name (optional)">
+            </div>
+          </form>
+
+          <table class="table" style="margin-top:12px">
+            <thead><tr><th>STOCK NAME</th><th>QUANTITY</th><th>REMARKS</th><th>STATUS</th><th>DOCKET</th><th>TIMESTAMP</th><th>ACTIONS</th></tr></thead>
+            <tbody>
+              {% for r in my_requests %}
+                <tr>
+                  <td>{% if r.stock %}{{ r.stock.name }}{% else %}EMER: {{ r.emergency_text }}{% endif %}</td>
+                  <td>{{ r.quantity }}</td>
+                  <td class="small">{{ r.hod_comment or '-' }}</td>
+                  <td>
+                    {% if r.status == 'pending' %}<span class="small">Pending</span>
+                    {% elif r.status == 'approved' %}<span class="small success">Approved</span>
+                    {% elif r.status == 'in_transit' %}<span class="small">In Transit</span>
+                    {% elif r.status == 'received' %}<span class="small success">Received</span>
+                    {% elif r.status == 'denied' %}<span class="small danger">Denied</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ r.docket_number or '-' }}</td>
+                  <td class="timestamp">{{ r.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                  <td class="actions">
+                    {% if r.status == 'in_transit' %}
+                      <form method="post" action="{{ url_for('api_mark_received', request_id=r.id) }}">
+                        <button class="btn" type="submit">Mark as Received</button>
+                      </form>
+                    {% elif r.status in ['pending','denied'] %}
+                      <form method="post" action="{{ url_for('api_cancel_request', request_id=r.id) }}" onsubmit="return confirm('Delete request?');">
+                        <button class="btn red" type="submit">Delete</button>
+                      </form>
+                    {% else %}
+                      <span class="small muted">No action</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card block-pink">
+          <div class="section-title">Urgent Stock Request</div>
+          <form method="post" action="{{ url_for('api_create_request') }}">
+            <div class="row">
+              <div style="flex:1">
+                <label>Stock Name</label>
+                <input type="text" name="emergency_text" placeholder="Urgent stock name">
+              </div>
+              <div style="width:120px">
+                <label>Quantity</label>
+                <input type="number" name="quantity" value="1" min="1">
+              </div>
+              <div style="width:140px;align-self:flex-end">
+                <button class="btn red" type="submit">Send Urgent Request</button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="card block-blue">
+          <div class="section-title">My Personal Stock</div>
+          <form method="post" action="{{ url_for('api_engineer_stock_add') }}" class="form-inline">
+            <input type="text" name="stock_name" placeholder="Stock Name">
+            <input type="number" name="quantity" placeholder="Quantity" style="width:120px">
+            <button class="btn" type="submit">Add/Update Stock</button>
+          </form>
+
+          <table class="table" style="margin-top:12px">
+            <thead><tr><th>STOCK NAME</th><th>QUANTITY</th><th>TIMESTAMP</th><th>ACTIONS</th></tr></thead>
+            <tbody>
+              {% for es in my_engineer_stocks %}
+                <tr>
+                  <td>{{ es.stock.name }}</td>
+                  <td>{{ es.quantity }}</td>
+                  <td class="timestamp">{{ es.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                  <td>
+                    <form method="post" action="{{ url_for('api_issue_add') }}">
+                      <input type="hidden" name="stock_id" value="{{ es.stock.id }}">
+                      <input type="number" name="quantity" value="1" min="1" style="width:80px">
+                      <input type="text" name="site_name" placeholder="Site" style="width:140px">
+                      <button class="btn" type="submit">Issue</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card block-lilac">
+          <div class="section-title">Stock Usage</div>
+          <table class="table">
+            <thead><tr><th>STOCK NAME</th><th>QUANTITY USED</th><th>SITE NAME</th><th>REASON</th><th>TIMESTAMP</th></tr></thead>
+            <tbody>
+              {% for it in my_issues %}
+                <tr>
+                  <td>{{ it.stock.name }}</td>
+                  <td>{{ it.quantity }}</td>
+                  <td>{{ it.site_name }}</td>
+                  <td class="small">{{ it.reason }}</td>
+                  <td class="timestamp">{{ it.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
+    {% endif %}
 
-      <div class="card">
-        <h3>Manage Engineers</h3>
-        <form method="post" action="{{ url_for('create_engineer') }}">
-          <label>Username (login)</label>
-          <input type="text" name="username" placeholder="eg: eng1" required />
-          <label>Full Name</label>
-          <input type="text" name="full_name" placeholder="Engineer full name" />
-          <label>Password</label>
-          <input type="text" name="password" placeholder="password" required />
-          <button type="submit">Create Engineer</button>
-        </form>
+    {# HOD DASHBOARD #}
+    {% if hod %}
+      <h1>HOD Dashboard</h1>
+      <div class="grid">
+        <div class="card block-yellow">
+          <div class="section-title">Stock Requests</div>
+          <table class="table">
+            <thead><tr><th>STOCK NAME</th><th>QTY</th><th>REQUESTED BY</th><th>REMARKS</th><th>STATUS</th><th>TIMESTAMP</th><th>ACTIONS</th></tr></thead>
+            <tbody>
+              {% for r in requests %}
+                <tr>
+                  <td>{% if r.stock %}{{ r.stock.name }}{% else %}EMER: {{ r.emergency_text }}{% endif %}</td>
+                  <td>{{ r.quantity }}</td>
+                  <td>{{ r.engineer.username }}</td>
+                  <td class="small">{{ r.hod_comment or '-' }}</td>
+                  <td>
+                    {% if r.status == 'pending' %}<span class="small">Pending</span>
+                    {% elif r.status == 'approved' %}<span class="small success">Approved</span>
+                    {% elif r.status == 'in_transit' %}<span class="small">In Transit</span>
+                    {% elif r.status == 'received' %}<span class="small success">Received</span>
+                    {% elif r.status == 'denied' %}<span class="small danger">Denied</span>
+                    {% endif %}
+                  </td>
+                  <td class="timestamp">{{ r.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                  <td class="actions">
+                    {% if r.status == 'pending' %}
+                      <form method="post" action="{{ url_for('api_request_act', request_id=r.id) }}" style="display:inline-block">
+                        <input type="hidden" name="action" value="approve">
+                        <input type="text" name="comment" placeholder="Comment">
+                        <button class="btn" type="submit">Approve</button>
+                      </form>
+                      <form method="post" action="{{ url_for('api_request_act', request_id=r.id) }}" style="display:inline-block">
+                        <input type="hidden" name="action" value="deny">
+                        <input type="text" name="comment" placeholder="Reason">
+                        <button class="btn red" type="submit">Deny</button>
+                      </form>
+                    {% elif r.status == 'approved' %}
+                      <form method="post" action="{{ url_for('api_request_act', request_id=r.id) }}">
+                        <input type="hidden" name="action" value="dispatch">
+                        <input type="text" name="docket" placeholder="Docket number" required>
+                        <button class="btn" type="submit">Dispatch</button>
+                      </form>
+                    {% elif r.status == 'in_transit' %}
+                      <div class="small">In transit - Docket: <b>{{ r.docket_number }}</b></div>
+                    {% else %}
+                      <div class="small muted">No action</div>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
 
-        <h4 style="margin-top:12px;">Existing Engineers</h4>
-        <table>
-          <thead><tr><th>Username</th><th>Full name</th><th>Actions</th></tr></thead>
-          <tbody>
-          {% for e in engineers %}
-            <tr>
-              <td>{{ e.username }}</td>
-              <td>{{ e.full_name }}</td>
-              <td>
-                <form method="post" action="{{ url_for('update_engineer', user_id=e.id) }}" style="display:inline-block;">
-                  <input type="text" name="full_name" placeholder="name" />
-                  <input type="text" name="password" placeholder="new password (optional)" />
-                  <button type="submit" class="secondary">Update</button>
-                </form>
-                <form method="post" action="{{ url_for('delete_engineer', user_id=e.id) }}" style="display:inline-block;" onsubmit="return confirm('Delete engineer?');">
-                  <button type="submit" class="action-deny">Delete</button>
-                </form>
-              </td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
+        <div class="card block-blue">
+          <div class="section-title">Stock Management</div>
+          <form method="post" action="{{ url_for('api_add_stock') }}" class="form-inline">
+            <input type="text" name="name" placeholder="Stock Name">
+            <input type="number" name="quantity" placeholder="Quantity" style="width:120px">
+            <button class="btn" type="submit">Add Stock</button>
+          </form>
+
+          <table class="table" style="margin-top:12px">
+            <thead><tr><th>STOCK NAME</th><th>QUANTITY</th><th>TIMESTAMP</th><th>ACTIONS</th></tr></thead>
+            <tbody>
+              {% for s in stocks %}
+                <tr>
+                  <td>{{ s.name }}</td>
+                  <td>{{ s.quantity }}</td>
+                  <td class="timestamp">{{ s.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                  <td>
+                    <form method="post" action="{{ url_for('api_edit_stock', stock_id=s.id) }}" style="display:inline-block">
+                      <input type="text" name="name" placeholder="name">
+                      <input type="number" name="quantity" placeholder="qty" style="width:90px">
+                      <button class="btn" type="submit">Edit</button>
+                    </form>
+                    <form method="post" action="{{ url_for('api_delete_stock', stock_id=s.id) }}" style="display:inline-block" onsubmit="return confirm('Delete stock?');">
+                      <button class="btn red" type="submit">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card" style="background:#e6eef6">
+          <div class="section-title">Manage Engineers</div>
+          <form method="post" action="{{ url_for('api_add_engineer') }}" class="form-inline">
+            <input type="text" name="username" placeholder="Username">
+            <input type="text" name="password" placeholder="Password">
+            <input type="text" name="full_name" placeholder="Full name">
+            <button class="btn" type="submit">Add Engineer</button>
+          </form>
+
+          <table class="table" style="margin-top:12px">
+            <thead><tr><th>USERNAME</th><th>FULL NAME</th><th>TIMESTAMP</th><th>ACTIONS</th></tr></thead>
+            <tbody>
+              {% for e in engineers %}
+                <tr>
+                  <td>{{ e.username }}</td>
+                  <td>{{ e.full_name }}</td>
+                  <td class="timestamp">{{ e.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                  <td>
+                    <form method="post" action="{{ url_for('api_delete_engineer', user_id=e.id) }}" onsubmit="return confirm('Delete engineer?');">
+                      <button class="btn red" type="submit">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card block-green">
+          <div class="section-title">Engineer Personal Stock</div>
+          <table class="table">
+            <thead><tr><th>ENGINEER</th><th>STOCK NAME</th><th>QUANTITY</th><th>TIMESTAMP</th></tr></thead>
+            <tbody>
+              {% for es in engineer_stocks %}
+                <tr>
+                  <td>{{ es.engineer.username }}</td>
+                  <td>{{ es.stock.name }}</td>
+                  <td>{{ es.quantity }}</td>
+                  <td class="timestamp">{{ es.updated_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card block-lilac">
+          <div class="section-title">Stock Usage Log</div>
+          <table class="table">
+            <thead><tr><th>ENGINEER</th><th>STOCK NAME</th><th>QUANTITY</th><th>SITE</th><th>REASON</th><th>TIMESTAMP</th></tr></thead>
+            <tbody>
+              {% for it in issues %}
+                <tr>
+                  <td>{{ it.engineer.username }}</td>
+                  <td>{{ it.stock.name }}</td>
+                  <td>{{ it.quantity }}</td>
+                  <td>{{ it.site_name }}</td>
+                  <td class="small">{{ it.reason }}</td>
+                  <td class="timestamp">{{ it.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
+    {% endif %}
+  </div>
 
-      <div class="card" style="flex:1 1 100%;">
-        <h3>Requests (All)</h3>
-        <table>
-          <thead><tr><th>#</th><th>Engineer</th><th>Stock</th><th>Qty</th><th>Status</th><th>Docket</th><th>Action</th><th>Time</th></tr></thead>
-          <tbody>
-          {% for r in requests %}
-            <tr>
-              <td>{{ r.id }}</td>
-              <td>{{ r.engineer.username }}</td>
-              <td>{% if r.stock %}{{ r.stock.name }}{% else %}EMER: {{ r.emergency_text }}{% endif %}</td>
-              <td>{{ r.quantity }}</td>
-              <td>{{ r.status }}</td>
-              <td>{{ r.docket_number or '-' }}</td>
-              <td>
-                {% if r.status == 'pending' %}
-                  <form method="post" action="{{ url_for('hod_act_request', request_id=r.id) }}" style="display:inline-block;">
-                    <input type="hidden" name="action" value="approve" />
-                    <input type="text" name="comment" placeholder="comment (optional)" />
-                    <button type="submit" class="action-accept">Approve</button>
-                  </form>
-                  <form method="post" action="{{ url_for('hod_act_request', request_id=r.id) }}" style="display:inline-block;">
-                    <input type="hidden" name="action" value="deny" />
-                    <input type="text" name="comment" placeholder="reason (optional)" />
-                    <button type="submit" class="action-deny">Deny</button>
-                  </form>
-                {% elif r.status == 'approved' %}
-                  <form method="post" action="{{ url_for('hod_act_request', request_id=r.id) }}" style="display:inline-block;">
-                    <input type="hidden" name="action" value="dispatch" />
-                    <input type="text" name="docket" placeholder="Docket #" required />
-                    <button type="submit" class="action-dispatch">Dispatch</button>
-                  </form>
-                {% elif r.status == 'dispatched' %}
-                  <form method="post" action="{{ url_for('hod_act_request', request_id=r.id) }}" style="display:inline-block;">
-                    <input type="hidden" name="action" value="mark_received" />
-                    <button type="submit" class="action-accept">Mark Received</button>
-                  </form>
-                {% else %}
-                  <div class="muted">No action</div>
-                {% endif %}
-              </td>
-              <td class="tiny">{{ r.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-      <div class="card" style="flex:1 1 100%;">
-        <h3>Issue Records (Used stock)</h3>
-        <table>
-          <thead><tr><th>ID</th><th>Engineer</th><th>Stock</th><th>Qty</th><th>Site</th><th>Time</th></tr></thead>
-          <tbody>
-          {% for it in issues %}
-            <tr>
-              <td>{{ it.id }}</td>
-              <td>{{ it.engineer.username }}</td>
-              <td>{{ it.stock.name }}</td>
-              <td>{{ it.quantity }}</td>
-              <td>{{ it.site_name }}</td>
-              <td class="tiny">{{ it.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-    </div>
-  {% endif %}
-
-  {# Engineer dashboard #}
-  {% if engineer %}
-    <h2>Engineer Dashboard</h2>
-    <div class="row">
-      <div class="card">
-        <h3>Request Stock</h3>
-        <form method="post" action="{{ url_for('create_request') }}">
-          <label>Search / Select stock (only HOD available stock will appear)</label>
-          <input id="stock_search" class="searchbox" placeholder="type to filter stocks..." />
-          <select id="stock_select" name="stock_id" style="margin-top:8px;">
-            <option value="">-- choose or leave blank for emergency --</option>
-            {% for s in stocks %}
-              <option value="{{ s.id }}" data-name="{{ s.name }}">{{ s.name }} ({{ s.quantity }})</option>
-            {% endfor %}
-          </select>
-          <label>Or emergency stock name (if not in list)</label>
-          <input type="text" name="emergency_text" placeholder="Emergency item name (optional)" />
-          <label>Quantity</label>
-          <input type="number" name="quantity" value="1" min="1" />
-          <button type="submit">Create Request</button>
-        </form>
-
-        <h4 style="margin-top:12px;">My Requests</h4>
-        <table>
-          <thead><tr><th>ID</th><th>Stock</th><th>Qty</th><th>Status</th><th>Docket</th><th>Time</th><th>Action</th></tr></thead>
-          <tbody>
-          {% for r in my_requests %}
-            <tr>
-              <td>{{ r.id }}</td>
-              <td>{% if r.stock %}{{ r.stock.name }}{% else %}EMER: {{ r.emergency_text }}{% endif %}</td>
-              <td>{{ r.quantity }}</td>
-              <td>{{ r.status }}</td>
-              <td>{{ r.docket_number or '-' }}</td>
-              <td class="tiny">{{ r.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-              <td>
-                {% if r.status in ['pending','denied'] %}
-                  <form method="post" action="{{ url_for('engineer_cancel', request_id=r.id) }}" onsubmit="return confirm('Cancel/delete request?');">
-                    <button type="submit" class="action-deny">Delete</button>
-                  </form>
-                {% else %}
-                  <span class="muted">No action</span>
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-      <div class="card">
-        <h3>My Available Stock (Received)</h3>
-        <table>
-          <thead><tr><th>Stock</th><th>Qty</th><th>Actions</th></tr></thead>
-          <tbody>
-            {% for es in my_engineer_stocks %}
-              <tr>
-                <td>{{ es.stock.name }}</td>
-                <td>{{ es.quantity }}</td>
-                <td>
-                  <form method="post" action="{{ url_for('create_issue') }}" class="inline-form">
-                    <input type="hidden" name="stock_id" value="{{ es.stock.id }}" />
-                    <input type="number" name="quantity" value="1" min="1" style="width:80px;" />
-                    <input type="text" name="site_name" placeholder="Site name" />
-                    <input type="text" name="notes" placeholder="Notes" />
-                    <button type="submit" class="secondary">Issue</button>
-                  </form>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-
-        <h4 style="margin-top:12px;">My Used/Issued Records</h4>
-        <table>
-          <thead><tr><th>ID</th><th>Stock</th><th>Qty</th><th>Site</th><th>Time</th></tr></thead>
-          <tbody>
-            {% for it in issues %}
-              <tr>
-                <td>{{ it.id }}</td>
-                <td>{{ it.stock.name }}</td>
-                <td>{{ it.quantity }}</td>
-                <td>{{ it.site_name }}</td>
-                <td class="tiny">{{ it.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-    </div>
-  {% endif %}
-
-</div>
-
-<footer>PT ESPL Inventory • All operations timestamped. Server time shown with each record.</footer>
-
-<script>
-  // small helper to filter dropdown by typed text
-  const search = document.getElementById('stock_search');
-  const select = document.getElementById('stock_select');
-
-  if (search && select) {
-    search.addEventListener('input', function(e) {
-      const q = e.target.value.toLowerCase();
-      for (let i = 0; i < select.options.length; i++) {
-        const opt = select.options[i];
-        const name = (opt.dataset.name || opt.text).toLowerCase();
-        opt.style.display = name.indexOf(q) !== -1 ? '' : 'none';
-      }
-    });
-
-    // clicking on suggestion selects
-    search.addEventListener('keydown', function(e){
-      if(e.key === 'Enter'){
-        e.preventDefault();
-        // If only one visible option, select it
-        let visible=null, count=0;
-        for (let i=0;i<select.options.length;i++){
-          if(select.options[i].style.display!=='none' && select.options[i].value) { visible = select.options[i]; count++; }
+  <script>
+    // Type-to-filter for stock dropdown (engineer)
+    const stockSearch = document.getElementById('stock_search');
+    const stockSelect = document.getElementById('stock_select');
+    if(stockSearch && stockSelect){
+      stockSearch.addEventListener('input', function(e){
+        const q = e.target.value.toLowerCase();
+        for(let i=0;i<stockSelect.options.length;i++){
+          const opt = stockSelect.options[i];
+          const name = (opt.dataset.name || opt.text).toLowerCase();
+          opt.style.display = name.indexOf(q) !== -1 ? '' : 'none';
         }
-        if(count===1 && visible) { select.value = visible.value; }
-      }
-    });
-  }
-</script>
+      });
+    }
+  </script>
 </body>
 </html>
