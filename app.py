@@ -1,240 +1,214 @@
 import os
 from datetime import datetime
-from flask import (
-    Flask, render_template, request, redirect, url_for, session, flash, jsonify
-)
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import inspect, text
 
-# --------------------
-# App & DB setup
-# --------------------
-app = Flask(__name__, static_folder="static", template_folder="templates")
-app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key")
+app = Flask(__name__)
+app.secret_key = os.urandom(24)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL:
-    app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
-else:
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///data.db"
+# PostgreSQL DATABASE_URL from Render or local fallback
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    'DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/inventory_db'
+)
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
-
-# --------------------
+# -------------------------
 # Models
-# --------------------
+# -------------------------
 class User(db.Model):
-    __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(120), unique=True, nullable=False)
+    username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(50), nullable=False)  # 'hod' or 'engineer'
+    role = db.Column(db.String(20), nullable=False)  # 'HOD' or 'Engineer'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
 
 class Stock(db.Model):
-    __tablename__ = "stock"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(200), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False, default=0)
+    name = db.Column(db.String(100), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class Dispatch(db.Model):
-    __tablename__ = "dispatch"
     id = db.Column(db.Integer, primary_key=True)
-    stock_id = db.Column(db.Integer, db.ForeignKey("stock.id"), nullable=False)
-    engineer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    docket_number = db.Column(db.String(200))
-    status = db.Column(db.String(50), default="in_transit")  # in_transit / received
+    stock_id = db.Column(db.Integer, db.ForeignKey('stock.id'), nullable=False)
+    engineer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    docket_number = db.Column(db.String(50), nullable=True)
+    status = db.Column(db.String(20), default='In Transit')  # 'In Transit' or 'Received'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    received_at = db.Column(db.DateTime)
-
-    stock = db.relationship("Stock", backref="dispatches")
-    engineer = db.relationship("User", backref="dispatches")
-
+    received_at = db.Column(db.DateTime, nullable=True)
 
 class EmergencyRequest(db.Model):
-    __tablename__ = "emergency_request"
     id = db.Column(db.Integer, primary_key=True)
-    engineer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    item_name = db.Column(db.String(200), nullable=False)
-    status = db.Column(db.String(50), default="pending")  # pending / approved / rejected
+    stock_name = db.Column(db.String(100), nullable=False)
+    engineer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(20), default='Pending')  # 'Pending', 'Accepted', 'Denied'
+    hod_comments = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    engineer = db.relationship("User", backref="emergency_requests")
-
-
-class PersonalStock(db.Model):
-    __tablename__ = "personal_stock"
-    id = db.Column(db.Integer, primary_key=True)
-    engineer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    stock_name = db.Column(db.String(200), nullable=False)
-    quantity = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    engineer = db.relationship("User", backref="personal_stocks")
-
-
-class StockUsage(db.Model):
-    __tablename__ = "stock_usage"
-    id = db.Column(db.Integer, primary_key=True)
-    engineer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    stock_name = db.Column(db.String(200), nullable=False)
-    quantity_used = db.Column(db.Integer, nullable=False)
-    site_name = db.Column(db.String(200))
-    reason = db.Column(db.String(400))
-    amc_cmc = db.Column(db.String(100))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    engineer = db.relationship("User", backref="usage_logs")
-
-
-# --------------------
-# Ensure tables & missing columns
-# --------------------
-def ensure_columns_and_defaults():
-    db.create_all()
-    inspector = inspect(db.engine)
-    dialect = db.engine.dialect.name
-
-    expected = {
-        "user": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
-        "stock": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
-        "dispatch": {
-            "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-            "received_at": "TIMESTAMP NULL",
-        },
-        "emergency_request": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
-        "personal_stock": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
-        "stock_usage": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
-    }
-
-    for table, cols in expected.items():
-        if not inspector.has_table(table):
-            continue
-        existing = {c["name"] for c in inspector.get_columns(table)}
-        for col_name, col_sql in cols.items():
-            if col_name not in existing:
-                try:
-                    if dialect == "sqlite":
-                        sqlite_sql = col_sql.replace("TIMESTAMP", "DATETIME").replace("NULL", "")
-                        sql = f'ALTER TABLE "{table}" ADD COLUMN {col_name} {sqlite_sql};'
-                    else:
-                        sql = f'ALTER TABLE "{table}" ADD COLUMN {col_name} {col_sql};'
-                    db.session.execute(text(sql))
-                    db.session.commit()
-                except Exception as e:
-                    app.logger.warning(f"Could not add column {col_name} to {table}: {e}")
-
-
+# -------------------------
+# Ensure default HOD exists
+# -------------------------
 with app.app_context():
-    ensure_columns_and_defaults()
-    # create default HOD if missing
-    if not User.query.filter_by(role="hod").first():
-        hod = User(username="PTESPL", password=generate_password_hash("ptespl@123"), role="hod")
+    db.create_all()
+    if not User.query.filter_by(role='HOD').first():
+        hod = User(username='PTESPL', password=generate_password_hash('ptespl@123'), role='HOD')
         db.session.add(hod)
         db.session.commit()
 
-
-# --------------------
-# Jinja filter for datetime formatting
-# --------------------
-@app.template_filter("dtfmt")
-def format_datetime(value):
-    if not value:
-        return "-"
-    return value.strftime("%d-%m-%Y %I:%M:%S %p")
-
-
-# --------------------
-# Authentication routes
-# --------------------
-@app.route("/", methods=["GET", "POST"])
-@app.route("/login", methods=["GET", "POST"])
+# -------------------------
+# Login / Logout
+# -------------------------
+@app.route('/', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "")
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password, password):
-            session["user_id"] = user.id
-            session["role"] = user.role
-            flash(f"Welcome, {user.username}", "success")
-            return redirect(url_for("dashboard"))
-        flash("Invalid credentials", "danger")
-    return render_template("login.html")
+            session['user_id'] = user.id
+            session['role'] = user.role
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid credentials', 'danger')
+    return render_template('main.html', login_page=True)
 
-
-@app.route("/logout")
+@app.route('/logout')
 def logout():
     session.clear()
-    flash("Logged out", "info")
-    return redirect(url_for("login"))
+    return redirect(url_for('login'))
 
-
-# --------------------
+# -------------------------
 # Dashboard
-# --------------------
-@app.route("/dashboard")
+# -------------------------
+@app.route('/dashboard')
 def dashboard():
-    if "user_id" not in session:
-        return redirect(url_for("login"))
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    user = User.query.get(session['user_id'])
+    hods = User.query.filter_by(role='HOD').all()
+    engineers = User.query.filter_by(role='Engineer').all()
+    stocks = Stock.query.all()
+    dispatches = Dispatch.query.all()
+    emergencies = EmergencyRequest.query.all()
 
-    role = session.get("role")
-    user_id = session.get("user_id")
-    user = User.query.get(user_id)
-    username = user.username if user else ""
+    return render_template('main.html',
+                           login_page=False,
+                           user=user,
+                           hods=hods,
+                           engineers=engineers,
+                           stocks=stocks,
+                           dispatches=dispatches,
+                           emergencies=emergencies)
 
-    stocks = Stock.query.order_by(Stock.name).all()
-    engineers = User.query.filter_by(role="engineer").order_by(User.username).all()
+# -------------------------
+# CRUD Stock (HOD only)
+# -------------------------
+@app.route('/add_stock', methods=['POST'])
+def add_stock():
+    if session.get('role') != 'HOD':
+        flash("Unauthorized", 'danger')
+        return redirect(url_for('dashboard'))
+    name = request.form['stock_name']
+    qty = int(request.form['quantity'])
+    stock = Stock(name=name, quantity=qty)
+    db.session.add(stock)
+    db.session.commit()
+    flash("Stock added", 'success')
+    return redirect(url_for('dashboard'))
 
-    if role == "hod":
-        dispatches = Dispatch.query.order_by(Dispatch.created_at.desc()).all()
-        emergencies = EmergencyRequest.query.order_by(EmergencyRequest.created_at.desc()).all()
-        personal_stocks = PersonalStock.query.order_by(PersonalStock.created_at.desc()).all()
-        usage_logs = StockUsage.query.order_by(StockUsage.created_at.desc()).all()
-        return render_template(
-            "main.html",
-            role=role,
-            username=username,
-            stocks=stocks,
-            engineers=engineers,
-            dispatches=dispatches,
-            emergencies=emergencies,
-            personal_stocks=personal_stocks,
-            usage_logs=usage_logs,
-        )
-    elif role == "engineer":
-        dispatches = Dispatch.query.filter_by(engineer_id=user_id).order_by(Dispatch.created_at.desc()).all()
-        emergencies = EmergencyRequest.query.filter_by(engineer_id=user_id).order_by(EmergencyRequest.created_at.desc()).all()
-        personal_stocks = PersonalStock.query.filter_by(engineer_id=user_id).order_by(PersonalStock.created_at.desc()).all()
-        usage_logs = StockUsage.query.filter_by(engineer_id=user_id).order_by(StockUsage.created_at.desc()).all()
-        return render_template(
-            "main.html",
-            role=role,
-            username=username,
-            stocks=stocks,
-            engineers=engineers,
-            dispatches=dispatches,
-            emergencies=emergencies,
-            personal_stocks=personal_stocks,
-            usage_logs=usage_logs,
-        )
-    else:
-        return "Unauthorized", 403
+@app.route('/update_stock/<int:id>', methods=['POST'])
+def update_stock(id):
+    if session.get('role') != 'HOD':
+        flash("Unauthorized", 'danger')
+        return redirect(url_for('dashboard'))
+    stock = Stock.query.get(id)
+    stock.name = request.form['stock_name']
+    stock.quantity = int(request.form['quantity'])
+    db.session.commit()
+    flash("Stock updated", 'success')
+    return redirect(url_for('dashboard'))
 
+@app.route('/delete_stock/<int:id>')
+def delete_stock(id):
+    if session.get('role') != 'HOD':
+        flash("Unauthorized", 'danger')
+        return redirect(url_for('dashboard'))
+    stock = Stock.query.get(id)
+    db.session.delete(stock)
+    db.session.commit()
+    flash("Stock deleted", 'success')
+    return redirect(url_for('dashboard'))
 
-# --------------------
-# All other routes remain the same (CRUD, dispatch, emergency, personal stock, usage)...
-# --------------------
+# -------------------------
+# Dispatch workflow
+# -------------------------
+@app.route('/dispatch_stock', methods=['POST'])
+def dispatch_stock():
+    if session.get('role') != 'HOD':
+        flash("Unauthorized", 'danger')
+        return redirect(url_for('dashboard'))
+    stock_id = int(request.form['stock_id'])
+    engineer_id = int(request.form['engineer_id'])
+    docket = request.form.get('docket_number')
+    stock = Stock.query.get(stock_id)
+    if stock.quantity < 1:
+        flash("Not enough stock", 'danger')
+        return redirect(url_for('dashboard'))
+    stock.quantity -= 1
+    dispatch = Dispatch(stock_id=stock_id, engineer_id=engineer_id, docket_number=docket)
+    db.session.add(dispatch)
+    db.session.commit()
+    flash("Stock dispatched", 'success')
+    return redirect(url_for('dashboard'))
 
-# --------------------
-# Run
-# --------------------
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+@app.route('/receive_dispatch/<int:id>')
+def receive_dispatch(id):
+    dispatch = Dispatch.query.get(id)
+    if session.get('role') != 'Engineer' or dispatch.engineer_id != session['user_id']:
+        flash("Unauthorized", 'danger')
+        return redirect(url_for('dashboard'))
+    dispatch.status = 'Received'
+    dispatch.received_at = datetime.utcnow()
+    db.session.commit()
+    flash("Stock marked as received", 'success')
+    return redirect(url_for('dashboard'))
+
+# -------------------------
+# Emergency Requests
+# -------------------------
+@app.route('/request_emergency', methods=['POST'])
+def request_emergency():
+    if session.get('role') != 'Engineer':
+        flash("Unauthorized", 'danger')
+        return redirect(url_for('dashboard'))
+    stock_name = request.form['stock_name']
+    emergency = EmergencyRequest(stock_name=stock_name, engineer_id=session['user_id'])
+    db.session.add(emergency)
+    db.session.commit()
+    flash("Emergency request submitted", 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/process_emergency/<int:id>/<action>', methods=['POST'])
+def process_emergency(id, action):
+    if session.get('role') != 'HOD':
+        flash("Unauthorized", 'danger')
+        return redirect(url_for('dashboard'))
+    emergency = EmergencyRequest.query.get(id)
+    if action == 'accept':
+        emergency.status = 'Accepted'
+    elif action == 'deny':
+        emergency.status = 'Denied'
+    emergency.hod_comments = request.form.get('hod_comments')
+    db.session.commit()
+    flash(f"Emergency request {emergency.status}", 'success')
+    return redirect(url_for('dashboard'))
+
+if __name__ == '__main__':
+    app.run(debug=True)
