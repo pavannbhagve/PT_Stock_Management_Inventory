@@ -22,7 +22,6 @@ else:
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
-
 # --------------------
 # Models
 # --------------------
@@ -94,61 +93,43 @@ class StockUsage(db.Model):
 
 
 # --------------------
-# Ensure tables & missing columns (helps when DB existed without new columns)
+# Ensure tables & missing columns
 # --------------------
 def ensure_columns_and_defaults():
-    """
-    Create tables if missing, then inspect each table and add any missing
-    timestamp columns used by the models. This avoids SQL errors like:
-    'column user.created_at does not exist' when the DB already exists.
-    """
     db.create_all()
-
     inspector = inspect(db.engine)
-    dialect = db.engine.dialect.name  # 'postgresql' or 'sqlite' etc.
+    dialect = db.engine.dialect.name
 
-    # Map of expected columns per table and SQL fragment for the column type
     expected = {
         "user": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
         "stock": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
-        "dispatch": {
-            "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-            "received_at": "TIMESTAMP NULL",
-        },
+        "dispatch": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP", "received_at": "TIMESTAMP NULL"},
         "emergency_request": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
         "personal_stock": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
         "stock_usage": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
     }
 
     for table, cols in expected.items():
-        # If the table doesn't exist, skip (create_all already created it)
         if not inspector.has_table(table):
             continue
         existing = {c["name"] for c in inspector.get_columns(table)}
         for col_name, col_sql in cols.items():
             if col_name not in existing:
                 try:
-                    # Adjust SQL if using sqlite (CURRENT_TIMESTAMP syntax)
                     if dialect == "sqlite":
-                        # sqlite accepts: ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                         sqlite_sql = col_sql.replace("TIMESTAMP", "DATETIME").replace("NULL", "")
                         sql = f'ALTER TABLE "{table}" ADD COLUMN {col_name} {sqlite_sql};'
                     else:
-                        # General SQL (Postgres)
                         sql = f'ALTER TABLE "{table}" ADD COLUMN {col_name} {col_sql};'
-                    # Execute ALTER
                     db.session.execute(text(sql))
                     db.session.commit()
                     app.logger.info(f"Added column {col_name} to {table}")
                 except Exception as e:
                     app.logger.warning(f"Could not add column {col_name} to {table}: {e}")
-    # re-inspect if needed
-    inspector = inspect(db.engine)
 
 
 with app.app_context():
     ensure_columns_and_defaults()
-    # create default HOD if missing
     if not User.query.filter_by(role="hod").first():
         hod = User(username="PTESPL", password=generate_password_hash("ptespl@123"), role="hod")
         db.session.add(hod)
@@ -157,7 +138,7 @@ with app.app_context():
 
 
 # --------------------
-# Jinja filter for datetime formatting
+# Jinja filter
 # --------------------
 @app.template_filter("dtfmt")
 def format_datetime(value):
@@ -167,7 +148,7 @@ def format_datetime(value):
 
 
 # --------------------
-# Authentication routes
+# Authentication
 # --------------------
 @app.route("/", methods=["GET", "POST"])
 @app.route("/login", methods=["GET", "POST"])
@@ -199,11 +180,9 @@ def logout():
 def dashboard():
     if "user_id" not in session:
         return redirect(url_for("login"))
-
     role = session.get("role")
     user_id = session.get("user_id")
 
-    # common data
     stocks = Stock.query.order_by(Stock.name).all()
     engineers = User.query.filter_by(role="engineer").order_by(User.username).all()
 
@@ -212,7 +191,6 @@ def dashboard():
         emergencies = EmergencyRequest.query.order_by(EmergencyRequest.created_at.desc()).all()
         personal_stocks = PersonalStock.query.order_by(PersonalStock.created_at.desc()).all()
         usage_logs = StockUsage.query.order_by(StockUsage.created_at.desc()).all()
-        requests = EmergencyRequest.query.filter(EmergencyRequest.item_name.startswith("REQ:") == False).all()
         return render_template(
             "main.html",
             role="hod",
@@ -239,7 +217,6 @@ def dashboard():
             personal_stocks=personal_stocks,
             usage_logs=usage_logs,
         )
-
     else:
         return "Unauthorized", 403
 
@@ -432,11 +409,9 @@ def request_stock():
         qty = int(request.form.get("quantity", 0))
     except ValueError:
         qty = 0
-    remarks = request.form.get("remarks", "")
     if not stock_name or qty <= 0:
         flash("Stock & positive quantity required", "danger")
         return redirect(url_for("dashboard"))
-    # store as EmergencyRequest but prefixed for HOD to see as normal request
     req = EmergencyRequest(engineer_id=session.get("user_id"), item_name=f"REQ:{stock_name} (qty:{qty})")
     db.session.add(req)
     db.session.commit()
@@ -488,7 +463,14 @@ def add_usage():
     if not name or qty_used <= 0:
         flash("Stock name and positive quantity required", "danger")
         return redirect(url_for("dashboard"))
-    usage = StockUsage(engineer_id=session.get("user_id"), stock_name=name, quantity_used=qty_used, site_name=site_name, reason=reason, amc_cmc=amc)
+    usage = StockUsage(
+        engineer_id=session.get("user_id"),
+        stock_name=name,
+        quantity_used=qty_used,
+        site_name=site_name,
+        reason=reason,
+        amc_cmc=amc
+    )
     db.session.add(usage)
     db.session.commit()
     flash("Usage logged", "success")
@@ -496,7 +478,7 @@ def add_usage():
 
 
 # --------------------
-# Quick API for client JS (optional)
+# Quick API
 # --------------------
 @app.route("/api/stock/<int:stock_id>")
 def api_stock(stock_id):
