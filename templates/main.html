@@ -1,266 +1,325 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>PT Stock Management</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f4f9; }
-    header { background: #222; color: #fff; padding: 15px; text-align: center; }
-    .container { padding: 20px; }
-    .card { background: #fff; padding: 20px; margin: 20px auto; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-    h2 { margin-top: 0; }
-    form { margin: 10px 0; }
-    input, select, button { padding: 8px; margin: 5px 0; border-radius: 5px; border: 1px solid #ccc; }
-    button { background: #333; color: #fff; cursor: pointer; }
-    button:hover { background: #555; }
-    table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-    th { background: #333; color: #fff; }
-    .status-pending { color: orange; font-weight: bold; }
-    .status-in_transit { color: blue; font-weight: bold; }
-    .status-received { color: green; font-weight: bold; }
-    .flex { display: flex; justify-content: space-between; align-items: center; }
-    .logout { text-decoration: none; background: crimson; color: white; padding: 6px 10px; border-radius: 5px; }
-    .logout:hover { background: darkred; }
-    .tabs { margin: 15px 0; }
-    .tab { display: inline-block; margin-right: 10px; padding: 8px 15px; background: #ddd; border-radius: 5px; cursor: pointer; }
-    .tab.active { background: #333; color: #fff; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    .log-box { max-height: 200px; overflow-y: auto; background: #fafafa; border: 1px solid #ddd; padding: 10px; font-size: 14px; }
-    .timestamp { color: gray; font-size: 12px; }
-  </style>
+    <meta charset="UTF-8">
+    <title>Stock Management Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .navbar { margin-bottom: 20px; }
+        .card { margin-bottom: 20px; border-radius: 12px; }
+        .table th, .table td { vertical-align: middle; }
+        .section-title { margin: 20px 0 10px; }
+        .badge { font-size: 0.9rem; }
+        .timestamp { font-size: 0.8rem; color: #6c757d; }
+    </style>
 </head>
 <body>
-  <header>
-    <h1>PT Stock Management</h1>
-  </header>
-  <div class="container">
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3">
+        <a class="navbar-brand" href="#">PT Stock Management</a>
+        <div class="ms-auto">
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-light">Logout</a>
+        </div>
+    </nav>
 
-    <!-- LOGIN PAGE -->
-    {% if page == "login" %}
-    <div class="card" style="max-width:400px;">
-      <h2>Login</h2>
-      <form method="POST">
-        <input type="text" name="username" placeholder="Username" required><br>
-        <input type="password" name="password" placeholder="Password" required><br>
-        <button type="submit">Login</button>
-      </form>
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <ul>
-            {% for category, message in messages %}
-              <li style="color:crimson">{{ message }}</li>
-            {% endfor %}
-          </ul>
+    <div class="container-fluid">
+        <!-- HOD Dashboard -->
+        {% if role == "hod" %}
+        <h3 class="section-title">📦 HOD Dashboard</h3>
+        <div class="row">
+            <!-- Stock Management -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">Manage Stock</div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('add_stock') }}" class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <input type="text" name="name" class="form-control" placeholder="Item Name" required>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="number" name="quantity" class="form-control" placeholder="Quantity" required>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-success w-100">Add</button>
+                            </div>
+                        </form>
+
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Quantity</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in stocks %}
+                                <tr>
+                                    <td>{{ s.id }}</td>
+                                    <td>{{ s.name }}</td>
+                                    <td>{{ s.quantity }}</td>
+                                    <td>
+                                        <!-- Edit -->
+                                        <form method="POST" action="{{ url_for('edit_stock', stock_id=s.id) }}" class="d-inline">
+                                            <input type="text" name="name" value="{{ s.name }}" hidden>
+                                            <input type="number" name="quantity" value="{{ s.quantity }}" hidden>
+                                            <button type="submit" class="btn btn-sm btn-warning">Edit</button>
+                                        </form>
+                                        <!-- Delete -->
+                                        <a href="{{ url_for('delete_stock', stock_id=s.id) }}" 
+                                           class="btn btn-sm btn-danger"
+                                           onclick="return confirm('Delete this stock?')">Delete</a>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4">No stock available</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dispatches -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white">Dispatches</div>
+                    <div class="card-body">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Stock</th>
+                                    <th>Engineer</th>
+                                    <th>Docket</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Received</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for d in dispatches %}
+                                <tr>
+                                    <td>{{ d.id }}</td>
+                                    <td>{{ d.stock.name }}</td>
+                                    <td>{{ d.engineer.username }}</td>
+                                    <td>{{ d.docket_number }}</td>
+                                    <td>
+                                        {% if d.status == "in_transit" %}
+                                            <span class="badge bg-warning">In Transit</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Received</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="timestamp">{{ d.created_at }}</td>
+                                    <td class="timestamp">{{ d.received_at or "-" }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="7">No dispatch records</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                        <!-- Dispatch Form -->
+                        <form method="POST" action="{{ url_for('dispatch', stock_id=stocks[0].id if stocks else 0) }}" class="row g-2">
+                            <div class="col-md-4">
+                                <select name="engineer_id" class="form-select" required>
+                                    <option value="">Select Engineer</option>
+                                    {% for u in User.query.filter_by(role='engineer').all() %}
+                                    <option value="{{ u.id }}">{{ u.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" name="docket_number" class="form-control" placeholder="Docket Number" required>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-primary w-100">Dispatch</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Emergency Requests -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white">Emergency Requests</div>
+            <div class="card-body">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Engineer</th>
+                            <th>Item</th>
+                            <th>Status</th>
+                            <th>Requested At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in emergencies %}
+                        <tr>
+                            <td>{{ r.id }}</td>
+                            <td>{{ r.engineer.username }}</td>
+                            <td>{{ r.item_name }}</td>
+                            <td>
+                                {% if r.status == "pending" %}
+                                    <span class="badge bg-warning">Pending</span>
+                                {% elif r.status == "approved" %}
+                                    <span class="badge bg-success">Approved</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Rejected</span>
+                                {% endif %}
+                            </td>
+                            <td class="timestamp">{{ r.created_at }}</td>
+                            <td>
+                                {% if r.status == "pending" %}
+                                <a href="{{ url_for('update_emergency', req_id=r.id, action='approve') }}" class="btn btn-sm btn-success">Approve</a>
+                                <a href="{{ url_for('update_emergency', req_id=r.id, action='reject') }}" class="btn btn-sm btn-danger">Reject</a>
+                                {% else %}-{% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6">No emergency requests</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
         {% endif %}
-      {% endwith %}
-    </div>
-    {% endif %}
 
-    <!-- HOD DASHBOARD -->
-    {% if page == "hod_dashboard" %}
-    <div class="flex">
-      <h2>HOD Dashboard</h2>
-      <a href="{{ url_for('logout') }}" class="logout">Logout</a>
-    </div>
+        <!-- Engineer Dashboard -->
+        {% if role == "engineer" %}
+        <h3 class="section-title">🛠 Engineer Dashboard</h3>
+        <div class="row">
+            <!-- Available Stock -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">Available Stock</div>
+                    <div class="card-body">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in stocks %}
+                                <tr>
+                                    <td>{{ s.id }}</td>
+                                    <td>{{ s.name }}</td>
+                                    <td>{{ s.quantity }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="3">No stock available</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-    <div class="tabs">
-      <span class="tab active" data-tab="stocks">Manage Stocks</span>
-      <span class="tab" data-tab="requests">Engineer Requests</span>
-      <span class="tab" data-tab="engineers">Manage Engineers</span>
-      <span class="tab" data-tab="logs">History Logs</span>
-    </div>
+            <!-- Dispatches -->
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white">My Dispatches</div>
+                    <div class="card-body">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Stock</th>
+                                    <th>Docket</th>
+                                    <th>Status</th>
+                                    <th>Received</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for d in dispatches %}
+                                <tr>
+                                    <td>{{ d.id }}</td>
+                                    <td>{{ d.stock.name }}</td>
+                                    <td>{{ d.docket_number }}</td>
+                                    <td>
+                                        {% if d.status == "in_transit" %}
+                                            <span class="badge bg-warning">In Transit</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Received</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="timestamp">{{ d.received_at or "-" }}</td>
+                                    <td>
+                                        {% if d.status == "in_transit" %}
+                                        <a href="{{ url_for('receive', dispatch_id=d.id) }}" class="btn btn-sm btn-success">Mark Received</a>
+                                        {% else %}-{% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="6">No dispatch records</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    <!-- STOCK MANAGEMENT -->
-    <div id="stocks" class="tab-content active">
-      <div class="card">
-        <h3>Add Stock</h3>
-        <form method="POST" action="{{ url_for('add_stock') }}">
-          <input type="text" name="name" placeholder="Stock Name" required>
-          <input type="number" name="qty" placeholder="Quantity" required>
-          <button type="submit">Add</button>
-        </form>
-      </div>
-
-      <div class="card">
-        <h3>Available Stock</h3>
-        <table>
-          <tr><th>ID</th><th>Name</th><th>Quantity</th><th>Updated At</th><th>Actions</th></tr>
-          {% for s in stocks %}
-          <tr>
-            <td>{{ s.id }}</td>
-            <td>{{ s.name }}</td>
-            <td>{{ s.quantity }}</td>
-            <td>{{ s.updated_at.strftime("%Y-%m-%d %H:%M:%S") if s.updated_at else "" }}</td>
-            <td>
-              <form method="POST" action="{{ url_for('edit_stock', stock_id=s.id) }}" style="display:inline-block">
-                <input type="text" name="name" value="{{ s.name }}" required>
-                <input type="number" name="qty" value="{{ s.quantity }}" required>
-                <button type="submit">Update</button>
-              </form>
-              <a href="{{ url_for('delete_stock', stock_id=s.id) }}" onclick="return confirm('Delete stock?')">Delete</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </table>
-      </div>
-    </div>
-
-    <!-- ENGINEER REQUESTS -->
-    <div id="requests" class="tab-content">
-      <div class="card">
-        <h3>Stock Requests</h3>
-        <table>
-          <tr><th>ID</th><th>Engineer</th><th>Stock</th><th>Qty</th><th>Status</th><th>Docket</th><th>Action</th></tr>
-          {% for r in requests %}
-          <tr>
-            <td>{{ r.id }}</td>
-            <td>{{ r.requester.username }}</td>
-            <td>{{ r.stock.name if r.stock else r.stock_name }}</td>
-            <td>{{ r.qty }}</td>
-            <td class="status-{{ r.status }}">{{ r.status }}</td>
-            <td>{{ r.docket_number or "-" }}</td>
-            <td>
-              {% if r.status == "pending" %}
-                <form method="POST" action="{{ url_for('dispatch', req_id=r.id) }}">
-                  <input type="text" name="docket_number" placeholder="Enter docket #" required>
-                  <button type="submit">Dispatch</button>
+        <!-- Emergency Request -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white">Emergency Request</div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('emergency') }}" class="row g-2">
+                    <div class="col-md-8">
+                        <input type="text" name="item_name" class="form-control" placeholder="Enter item name" required>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-danger w-100">Request</button>
+                    </div>
                 </form>
-              {% elif r.status == "in_transit" %}
-                <em>In Transit</em>
-              {% else %}
-                <em>Completed</em>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </table>
-      </div>
-    </div>
-
-    <!-- ENGINEER MANAGEMENT -->
-    <div id="engineers" class="tab-content">
-      <div class="card">
-        <h3>Engineer Accounts</h3>
-        <form method="POST" action="{{ url_for('add_stock') }}" onsubmit="alert('For demo: Add engineer logic separately in backend'); return false;">
-          <input type="text" placeholder="Engineer username">
-          <input type="password" placeholder="Password">
-          <button type="submit">Create Engineer</button>
-        </form>
-        <ul>
-          {% for e in engineers %}
-            <li>{{ e.username }}</li>
-          {% endfor %}
-        </ul>
-      </div>
-    </div>
-
-    <!-- HISTORY LOGS -->
-    <div id="logs" class="tab-content">
-      <div class="card">
-        <h3>Recent Activity</h3>
-        <div class="log-box">
-          {% for log in logs %}
-            <p><b>{{ log.user.username }}</b>: {{ log.action }} <span class="timestamp">({{ log.timestamp.strftime("%Y-%m-%d %H:%M:%S") }})</span></p>
-          {% endfor %}
+                <hr>
+                <table class="table table-bordered table-hover mt-3">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Item</th>
+                            <th>Status</th>
+                            <th>Requested At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in emergencies %}
+                        <tr>
+                            <td>{{ r.id }}</td>
+                            <td>{{ r.item_name }}</td>
+                            <td>
+                                {% if r.status == "pending" %}
+                                    <span class="badge bg-warning">Pending</span>
+                                {% elif r.status == "approved" %}
+                                    <span class="badge bg-success">Approved</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Rejected</span>
+                                {% endif %}
+                            </td>
+                            <td class="timestamp">{{ r.created_at }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4">No emergency requests</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- ENGINEER DASHBOARD -->
-    {% if page == "engineer_dashboard" %}
-    <div class="flex">
-      <h2>Engineer Dashboard</h2>
-      <a href="{{ url_for('logout') }}" class="logout">Logout</a>
+        {% endif %}
     </div>
 
-    <div class="tabs">
-      <span class="tab active" data-tab="req_stock">Request Stock</span>
-      <span class="tab" data-tab="my_requests">My Requests</span>
-      <span class="tab" data-tab="logs">My Logs</span>
-    </div>
-
-    <!-- REQUEST STOCK -->
-    <div id="req_stock" class="tab-content active">
-      <div class="card">
-        <h3>Request Stock</h3>
-        <form method="POST" action="{{ url_for('request_stock') }}">
-          <select name="stock_id" id="stockSelect" onchange="toggleEmergency(this)">
-            <option value="">-- Select Stock --</option>
-            {% for s in stocks %}
-              <option value="{{ s.id }}">{{ s.name }} ({{ s.quantity }})</option>
-            {% endfor %}
-            <option value="emergency">Emergency Stock (Not Available)</option>
-          </select>
-          <input type="text" name="stock_name" id="emergencyInput" placeholder="Enter emergency stock name" style="display:none;">
-          <input type="number" name="qty" placeholder="Quantity" required>
-          <button type="submit">Request</button>
-        </form>
-      </div>
-    </div>
-
-    <!-- MY REQUESTS -->
-    <div id="my_requests" class="tab-content">
-      <div class="card">
-        <h3>My Stock Requests</h3>
-        <table>
-          <tr><th>ID</th><th>Stock</th><th>Qty</th><th>Status</th><th>Docket</th><th>Action</th></tr>
-          {% for r in requests %}
-          <tr>
-            <td>{{ r.id }}</td>
-            <td>{{ r.stock.name if r.stock else r.stock_name }}</td>
-            <td>{{ r.qty }}</td>
-            <td class="status-{{ r.status }}">{{ r.status }}</td>
-            <td>{{ r.docket_number or "-" }}</td>
-            <td>
-              {% if r.status == "in_transit" %}
-                <a href="{{ url_for('receive', req_id=r.id) }}">Mark Received</a>
-              {% elif r.status == "received" %}
-                <em>Received</em>
-              {% else %}
-                <em>Pending</em>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </table>
-      </div>
-    </div>
-
-    <!-- MY LOGS -->
-    <div id="logs" class="tab-content">
-      <div class="card">
-        <h3>My Activity</h3>
-        <div class="log-box">
-          {% for log in logs %}
-            <p>{{ log.action }} <span class="timestamp">({{ log.timestamp.strftime("%Y-%m-%d %H:%M:%S") }})</span></p>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
-  </div>
-
-  <script>
-    // Tab switching
-    const tabs = document.querySelectorAll(".tab");
-    const contents = document.querySelectorAll(".tab-content");
-    tabs.forEach(tab => {
-      tab.addEventListener("click", () => {
-        tabs.forEach(t => t.classList.remove("active"));
-        contents.forEach(c => c.classList.remove("active"));
-        tab.classList.add("active");
-        document.getElementById(tab.dataset.tab).classList.add("active");
-      });
-    });
-
-    // Emergency stock input toggle
-    function toggleEmergency(sel) {
-      document.getElementById("emergencyInput").style.display = (sel.value === "emergency") ? "block" : "none";
-    }
-  </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
