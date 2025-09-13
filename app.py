@@ -1,8 +1,11 @@
 import os
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import (
+    Flask, render_template, request, redirect, url_for, session, flash, jsonify
+)
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import inspect, text
 
 # --------------------
 # App & DB setup
@@ -14,7 +17,6 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if DATABASE_URL:
     app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 else:
-    # fallback for local dev / testing
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///data.db"
 
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -25,6 +27,7 @@ db = SQLAlchemy(app)
 # Models
 # --------------------
 class User(db.Model):
+    __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
@@ -33,6 +36,7 @@ class User(db.Model):
 
 
 class Stock(db.Model):
+    __tablename__ = "stock"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
@@ -40,6 +44,7 @@ class Stock(db.Model):
 
 
 class Dispatch(db.Model):
+    __tablename__ = "dispatch"
     id = db.Column(db.Integer, primary_key=True)
     stock_id = db.Column(db.Integer, db.ForeignKey("stock.id"), nullable=False)
     engineer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -53,6 +58,7 @@ class Dispatch(db.Model):
 
 
 class EmergencyRequest(db.Model):
+    __tablename__ = "emergency_request"
     id = db.Column(db.Integer, primary_key=True)
     engineer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     item_name = db.Column(db.String(200), nullable=False)
@@ -63,6 +69,7 @@ class EmergencyRequest(db.Model):
 
 
 class PersonalStock(db.Model):
+    __tablename__ = "personal_stock"
     id = db.Column(db.Integer, primary_key=True)
     engineer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     stock_name = db.Column(db.String(200), nullable=False)
@@ -73,6 +80,7 @@ class PersonalStock(db.Model):
 
 
 class StockUsage(db.Model):
+    __tablename__ = "stock_usage"
     id = db.Column(db.Integer, primary_key=True)
     engineer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     stock_name = db.Column(db.String(200), nullable=False)
@@ -86,10 +94,61 @@ class StockUsage(db.Model):
 
 
 # --------------------
-# Helper: create tables + default hod
+# Ensure tables & missing columns (helps when DB existed without new columns)
 # --------------------
-with app.app_context():
+def ensure_columns_and_defaults():
+    """
+    Create tables if missing, then inspect each table and add any missing
+    timestamp columns used by the models. This avoids SQL errors like:
+    'column user.created_at does not exist' when the DB already exists.
+    """
     db.create_all()
+
+    inspector = inspect(db.engine)
+    dialect = db.engine.dialect.name  # 'postgresql' or 'sqlite' etc.
+
+    # Map of expected columns per table and SQL fragment for the column type
+    expected = {
+        "user": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
+        "stock": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
+        "dispatch": {
+            "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+            "received_at": "TIMESTAMP NULL",
+        },
+        "emergency_request": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
+        "personal_stock": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
+        "stock_usage": {"created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"},
+    }
+
+    for table, cols in expected.items():
+        # If the table doesn't exist, skip (create_all already created it)
+        if not inspector.has_table(table):
+            continue
+        existing = {c["name"] for c in inspector.get_columns(table)}
+        for col_name, col_sql in cols.items():
+            if col_name not in existing:
+                try:
+                    # Adjust SQL if using sqlite (CURRENT_TIMESTAMP syntax)
+                    if dialect == "sqlite":
+                        # sqlite accepts: ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        sqlite_sql = col_sql.replace("TIMESTAMP", "DATETIME").replace("NULL", "")
+                        sql = f'ALTER TABLE "{table}" ADD COLUMN {col_name} {sqlite_sql};'
+                    else:
+                        # General SQL (Postgres)
+                        sql = f'ALTER TABLE "{table}" ADD COLUMN {col_name} {col_sql};'
+                    # Execute ALTER
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                    app.logger.info(f"Added column {col_name} to {table}")
+                except Exception as e:
+                    app.logger.warning(f"Could not add column {col_name} to {table}: {e}")
+    # re-inspect if needed
+    inspector = inspect(db.engine)
+
+
+with app.app_context():
+    ensure_columns_and_defaults()
+    # create default HOD if missing
     if not User.query.filter_by(role="hod").first():
         hod = User(username="PTESPL", password=generate_password_hash("ptespl@123"), role="hod")
         db.session.add(hod)
@@ -111,18 +170,19 @@ def format_datetime(value):
 # Authentication routes
 # --------------------
 @app.route("/", methods=["GET", "POST"])
+@app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("username")
-        password = request.form.get("password")
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password, password):
             session["user_id"] = user.id
             session["role"] = user.role
-            flash("Welcome, " + user.username, "success")
+            flash(f"Welcome, {user.username}", "success")
             return redirect(url_for("dashboard"))
         flash("Invalid credentials", "danger")
-    return render_template("main.html", role=None)  # not logged in
+    return render_template("login.html")
 
 
 @app.route("/logout")
@@ -142,6 +202,7 @@ def dashboard():
 
     role = session.get("role")
     user_id = session.get("user_id")
+
     # common data
     stocks = Stock.query.order_by(Stock.name).all()
     engineers = User.query.filter_by(role="engineer").order_by(User.username).all()
@@ -151,6 +212,7 @@ def dashboard():
         emergencies = EmergencyRequest.query.order_by(EmergencyRequest.created_at.desc()).all()
         personal_stocks = PersonalStock.query.order_by(PersonalStock.created_at.desc()).all()
         usage_logs = StockUsage.query.order_by(StockUsage.created_at.desc()).all()
+        requests = EmergencyRequest.query.filter(EmergencyRequest.item_name.startswith("REQ:") == False).all()
         return render_template(
             "main.html",
             role="hod",
@@ -287,7 +349,6 @@ def dispatch():
         flash("Stock not available", "warning")
         return redirect(url_for("dashboard"))
 
-    # decrement main stock
     try:
         qty_sent = int(request.form.get("dispatch_qty", 1))
     except ValueError:
@@ -298,9 +359,12 @@ def dispatch():
         return redirect(url_for("dashboard"))
 
     stock.quantity -= qty_sent
-
-    # create dispatch (store docket and quantity in docket_number for simplicity OR store separate field)
-    dispatch = Dispatch(stock_id=stock_id, engineer_id=engineer_id, docket_number=f"{docket} (qty:{qty_sent})", status="in_transit")
+    dispatch = Dispatch(
+        stock_id=stock_id,
+        engineer_id=engineer_id,
+        docket_number=f"{docket} (qty:{qty_sent})",
+        status="in_transit",
+    )
     db.session.add(dispatch)
     db.session.commit()
     flash("Dispatched", "success")
@@ -361,7 +425,6 @@ def emergency():
 
 @app.route("/request_stock", methods=["POST"])
 def request_stock():
-    # Normal stock request: stored as emergency with different label OR you can add a separate table.
     if session.get("role") != "engineer":
         return "Unauthorized", 403
     stock_name = request.form.get("stock_name", "").strip()
@@ -370,10 +433,10 @@ def request_stock():
     except ValueError:
         qty = 0
     remarks = request.form.get("remarks", "")
-    # For simplicity: create an emergency request record with prefix "REQ:"
     if not stock_name or qty <= 0:
         flash("Stock & positive quantity required", "danger")
         return redirect(url_for("dashboard"))
+    # store as EmergencyRequest but prefixed for HOD to see as normal request
     req = EmergencyRequest(engineer_id=session.get("user_id"), item_name=f"REQ:{stock_name} (qty:{qty})")
     db.session.add(req)
     db.session.commit()
