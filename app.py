@@ -438,8 +438,7 @@ def api_stocks():
 
 
 # Initial setup: create tables and seed HOD user if not exists
-@app.before_first_request
-def create_tables_and_seed():
+with app.app_context():
     db.create_all()
     hod = User.query.filter_by(role="hod").first()
     if not hod:
