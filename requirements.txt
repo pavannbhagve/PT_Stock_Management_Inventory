@@ -7,5 +7,5 @@ blinker>=1.6.2
 gunicorn
 psycopg2-binary
 python-dotenv
-
-
+flask_sqlalchemy
+sqlalchemy
