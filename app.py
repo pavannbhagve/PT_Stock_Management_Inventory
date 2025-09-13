@@ -85,7 +85,7 @@ def login():
             return redirect(url_for("dashboard"))
         else:
             flash("Invalid credentials")
-    return render_template("login.html")
+    return render_template("main.html")
 
 
 @app.route("/dashboard")
