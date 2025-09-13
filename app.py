@@ -172,6 +172,35 @@ def dispatch(req_id):
     log_action(user.id, f"Dispatched {req.stock.name if req.stock else req.stock_name} (qty {req.qty}) with docket {req.docket_number}")
     return redirect(url_for("dashboard"))
 
+@app.route("/add_engineer", methods=["POST"])
+def add_engineer():
+    user = current_user()
+    if not user or user.role != "hod":
+        return redirect(url_for("login"))
+
+    username = request.form["username"].strip()
+    password = request.form["password"].strip()
+    hashed_pw = generate_password_hash(password)
+    eng = User(username=username, password=hashed_pw, role="engineer")
+    db.session.add(eng)
+    db.session.commit()
+
+    log_action(user.id, f"Created engineer {username}")
+    return redirect(url_for("dashboard"))
+
+@app.route("/delete_engineer/<int:eng_id>")
+def delete_engineer(eng_id):
+    user = current_user()
+    if not user or user.role != "hod":
+        return redirect(url_for("login"))
+
+    eng = User.query.get_or_404(eng_id)
+    db.session.delete(eng)
+    db.session.commit()
+
+    log_action(user.id, f"Deleted engineer {eng.username}")
+    return redirect(url_for("dashboard"))
+
 # -------------------
 # Engineer Operations
 # -------------------
@@ -213,10 +242,20 @@ def receive(req_id):
     return redirect(url_for("dashboard"))
 
 # -------------------
-# Init DB (Flask 2.x compatible)
+# Init DB and default HOD
 # -------------------
 with app.app_context():
     db.create_all()
+    hod = User.query.filter_by(role="hod").first()
+    if not hod:
+        hod = User(
+            username="PTESPL",
+            password=generate_password_hash("ptespl@123"),
+            role="hod"
+        )
+        db.session.add(hod)
+        db.session.commit()
+        print("Default HOD created: PTESPL / ptespl@123")
 
 if __name__ == "__main__":
     app.run(debug=True)
