@@ -2,437 +2,262 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>PT Stock Management</title>
+  <title>Dashboard - PT Stock Management Inventory</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body { background:#f5f7fb; }
-    .card { border-radius:12px; box-shadow: 0 6px 18px rgba(0,0,0,0.04); }
-    .navbar { border-radius:0; }
-    .section-title { margin: 18px 0; font-weight:600; }
-    .timestamp { font-size:0.85rem; color:#6c757d; }
-    .small-input { max-width:120px; }
-    .required { color: #d33; }
-    .container-fluid { padding-top: 12px; padding-bottom: 40px; }
-  </style>
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3">
-    <a class="navbar-brand" href="{{ url_for('dashboard') }}">PT Stock Management</a>
-    <div class="ms-auto">
-      {% if session.get('user_id') %}
-      <span class="me-2 text-light">Hi, {{ User.query.get(session['user_id']).username if session.get('user_id') else '' }}</span>
-      <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Logout</a>
-      {% endif %}
-    </div>
-  </nav>
-
-  <div class="container-fluid">
-    <!-- Flash messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="row">
-          <div class="col-12">
-            {% for cat, msg in messages %}
-              <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
-                {{ msg }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-              </div>
-            {% endfor %}
-          </div>
-        </div>
-      {% endif %}
-    {% endwith %}
-
-    <!-- If not logged in: show login -->
-    {% if not role %}
-      <div class="row justify-content-center">
-        <div class="col-md-5">
-          <div class="card p-4">
-            <h4 class="mb-3">Login</h4>
-            <form method="POST" action="{{ url_for('login') }}">
-              <div class="mb-2">
-                <input class="form-control" name="username" placeholder="Username" required>
-              </div>
-              <div class="mb-2">
-                <input class="form-control" name="password" type="password" placeholder="Password" required>
-              </div>
-              <div class="d-grid">
-                <button class="btn btn-primary">Sign in</button>
-              </div>
-              <div class="mt-3 small text-muted">Default HOD: <strong>PTESPL</strong> / ptespl@123</div>
-            </form>
-          </div>
-        </div>
-      </div>
-    {% endif %}
-
-    <!-- HOD Dashboard -->
-    {% if role == 'hod' %}
-      <h3 class="section-title">HOD Dashboard</h3>
-
-      <div class="row">
-        <!-- Stock Management -->
-        <div class="col-md-6">
-          <div class="card p-3 mb-3">
-            <div class="d-flex justify-content-between">
-              <h5>Manage Stock</h5>
-              <small class="text-muted timestamp">Total: {{ stocks|length }}</small>
-            </div>
-            <form class="row g-2 my-2" method="POST" action="{{ url_for('add_stock') }}">
-              <div class="col-6"><input name="name" class="form-control" placeholder="Stock name" required></div>
-              <div class="col-4"><input name="quantity" type="number" min="0" value="1" class="form-control" placeholder="Quantity" required></div>
-              <div class="col-2"><button class="btn btn-success w-100">Add</button></div>
-            </form>
-
-            <table class="table table-sm table-hover mt-2">
-              <thead class="table-light">
-                <tr><th>ID</th><th>Name</th><th>Qty</th><th>Actions</th></tr>
-              </thead>
-              <tbody>
-                {% for s in stocks %}
-                  <tr>
-                    <td>{{ s.id }}</td>
-                    <td>{{ s.name }}</td>
-                    <td>{{ s.quantity }}</td>
-                    <td>
-                      <button class="btn btn-sm btn-warning js-edit-stock" data-id="{{ s.id }}" data-name="{{ s.name }}" data-qty="{{ s.quantity }}">Edit</button>
-                      <a href="{{ url_for('delete_stock', stock_id=s.id) }}" onclick="return confirm('Delete?')" class="btn btn-sm btn-danger">Delete</a>
-                    </td>
-                  </tr>
-                {% else %}
-                  <tr><td colspan="4">No stock</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Dispatch -->
-        <div class="col-md-6">
-          <div class="card p-3 mb-3">
-            <h5>Dispatch Stock</h5>
-            <form class="row g-2" method="POST" action="{{ url_for('dispatch') }}">
-              <div class="col-md-5">
-                <select name="stock_id" class="form-select" required>
-                  <option value="">Select stock</option>
-                  {% for s in stocks %}
-                    <option value="{{ s.id }}">{{ s.name }} ({{ s.quantity }})</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="col-md-4">
-                <select name="engineer_id" class="form-select" required>
-                  <option value="">Select engineer</option>
-                  {% for e in engineers %}
-                    <option value="{{ e.id }}">{{ e.username }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="col-md-2">
-                <input name="dispatch_qty" type="number" min="1" value="1" class="form-control" placeholder="Qty" required>
-              </div>
-              <div class="col-md-1">
-                <button class="btn btn-primary w-100">Send</button>
-              </div>
-              <div class="col-12 mt-2">
-                <input name="docket_number" class="form-control" placeholder="Docket number (optional)">
-              </div>
-            </form>
-
-            <hr>
-            <h6>Dispatch Records</h6>
-            <table class="table table-sm mt-2">
-              <thead class="table-light"><tr><th>ID</th><th>Stock</th><th>Engineer</th><th>Docket</th><th>Status</th><th>Created</th></tr></thead>
-              <tbody>
-                {% for d in dispatches %}
-                  <tr>
-                    <td>{{ d.id }}</td>
-                    <td>{{ d.stock.name }}</td>
-                    <td>{{ d.engineer.username }}</td>
-                    <td>{{ d.docket_number }}</td>
-                    <td>
-                      {% if d.status == 'in_transit' %}
-                        <span class="badge bg-warning">In transit</span>
-                      {% else %}
-                        <span class="badge bg-success">Received</span>
-                      {% endif %}
-                    </td>
-                    <td class="timestamp">{{ d.created_at|dtfmt }}</td>
-                  </tr>
-                {% else %}
-                  <tr><td colspan="6">No dispatches</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- emergency and engineer management -->
-      <div class="row">
-        <div class="col-md-8">
-          <div class="card p-3 mb-3">
-            <h5>Emergency Requests</h5>
-            <table class="table table-sm">
-              <thead class="table-light"><tr><th>ID</th><th>Engineer</th><th>Item</th><th>Status</th><th>Requested</th><th>Actions</th></tr></thead>
-              <tbody>
-                {% for r in emergencies %}
-                  <tr>
-                    <td>{{ r.id }}</td>
-                    <td>{{ r.engineer.username }}</td>
-                    <td>{{ r.item_name }}</td>
-                    <td>
-                      {% if r.status == 'pending' %}<span class="badge bg-warning">Pending</span>
-                      {% elif r.status == 'approved' %}<span class="badge bg-success">Approved</span>
-                      {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
-                    </td>
-                    <td class="timestamp">{{ r.created_at|dtfmt }}</td>
-                    <td>
-                      {% if r.status == 'pending' %}
-                        <a class="btn btn-sm btn-success" href="{{ url_for('update_emergency', req_id=r.id, action='approve') }}">Approve</a>
-                        <a class="btn btn-sm btn-danger" href="{{ url_for('update_emergency', req_id=r.id, action='reject') }}">Reject</a>
-                      {% else %}-{% endif %}
-                    </td>
-                  </tr>
-                {% else %}
-                  <tr><td colspan="6">No requests</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="col-md-4">
-          <div class="card p-3 mb-3">
-            <h5>Manage Engineers</h5>
-            <form method="POST" action="{{ url_for('add_engineer') }}" class="mb-2">
-              <input name="username" class="form-control mb-2" placeholder="username" required>
-              <input name="password" type="password" class="form-control mb-2" placeholder="password" required>
-              <div class="d-grid"><button class="btn btn-primary">Add Engineer</button></div>
-            </form>
-
-            <table class="table table-sm mt-2">
-              <thead class="table-light"><tr><th>Username</th><th>Since</th><th>Actions</th></tr></thead>
-              <tbody>
-                {% for e in engineers %}
-                  <tr>
-                    <td>{{ e.username }}</td>
-                    <td class="timestamp">{{ e.created_at|dtfmt }}</td>
-                    <td>
-                      <a href="{{ url_for('delete_engineer', user_id=e.id) }}" onclick="return confirm('Delete engineer?')" class="btn btn-sm btn-danger">Delete</a>
-                    </td>
-                  </tr>
-                {% else %}
-                  <tr><td colspan="3">No engineers</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- usage logs -->
-      <div class="card p-3 mb-3">
-        <h5>Stock Usage Log</h5>
-        <table class="table table-sm">
-          <thead class="table-light"><tr><th>Engineer</th><th>Stock</th><th>Qty</th><th>Site</th><th>Reason</th><th>AMC/CMC</th><th>When</th></tr></thead>
-          <tbody>
-            {% for u in usage_logs %}
-              <tr>
-                <td>{{ u.engineer.username }}</td>
-                <td>{{ u.stock_name }}</td>
-                <td>{{ u.quantity_used }}</td>
-                <td>{{ u.site_name }}</td>
-                <td>{{ u.reason }}</td>
-                <td>{{ u.amc_cmc }}</td>
-                <td class="timestamp">{{ u.created_at|dtfmt }}</td>
-              </tr>
-            {% else %}
-              <tr><td colspan="7">No logs</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% endif %}
-
-    <!-- Engineer Dashboard -->
-    {% if role == 'engineer' %}
-      <h3 class="section-title">Engineer Dashboard</h3>
-
-      <div class="row">
-        <div class="col-md-6">
-          <div class="card p-3 mb-3">
-            <h5>Available Main Stock</h5>
-            <table class="table table-sm">
-              <thead class="table-light"><tr><th>ID</th><th>Name</th><th>Qty</th></tr></thead>
-              <tbody>
-                {% for s in stocks %}
-                  <tr><td>{{ s.id }}</td><td>{{ s.name }}</td><td>{{ s.quantity }}</td></tr>
-                {% else %}
-                  <tr><td colspan="3">No stock</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="card p-3 mb-3">
-            <h5>Request Stock</h5>
-            <form method="POST" action="{{ url_for('request_stock') }}" class="row g-2">
-              <div class="col-md-6">
-                <select name="stock_name" class="form-select" required>
-                  <option value="">Select stock</option>
-                  {% for s in stocks %}<option value="{{ s.name }}">{{ s.name }}</option>{% endfor %}
-                </select>
-              </div>
-              <div class="col-md-3"><input name="quantity" type="number" min="1" value="1" class="form-control" required></div>
-              <div class="col-md-3"><button class="btn btn-primary w-100">Send Request</button></div>
-              <div class="col-12"><input name="remarks" placeholder="Remarks (optional)" class="form-control mt-2"></div>
-            </form>
-          </div>
-
-          <div class="card p-3 mb-3">
-            <h5>Emergency Request</h5>
-            <form method="POST" action="{{ url_for('emergency') }}" class="row g-2">
-              <div class="col-md-9"><input name="item_name" placeholder="Item name" class="form-control" required></div>
-              <div class="col-md-3"><button class="btn btn-danger w-100">Urgent Request</button></div>
-            </form>
-
-            <hr>
-            <h6>My Emergency Requests</h6>
-            <table class="table table-sm">
-              <thead class="table-light"><tr><th>ID</th><th>Item</th><th>Status</th><th>When</th></tr></thead>
-              <tbody>
-                {% for r in emergencies %}
-                  <tr>
-                    <td>{{ r.id }}</td>
-                    <td>{{ r.item_name }}</td>
-                    <td>
-                      {% if r.status == 'pending' %}<span class="badge bg-warning">Pending</span>
-                      {% elif r.status == 'approved' %}<span class="badge bg-success">Approved</span>
-                      {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
-                    </td>
-                    <td class="timestamp">{{ r.created_at|dtfmt }}</td>
-                  </tr>
-                {% else %}
-                  <tr><td colspan="4">No requests</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="col-md-6">
-          <div class="card p-3 mb-3">
-            <h5>My Dispatches</h5>
-            <table class="table table-sm">
-              <thead class="table-light"><tr><th>ID</th><th>Stock</th><th>Docket</th><th>Status</th><th>When</th><th>Action</th></tr></thead>
-              <tbody>
-                {% for d in dispatches %}
-                  <tr>
-                    <td>{{ d.id }}</td>
-                    <td>{{ d.stock.name }}</td>
-                    <td>{{ d.docket_number }}</td>
-                    <td>{% if d.status=='in_transit' %}<span class="badge bg-warning">In transit</span>{% else %}<span class="badge bg-success">Received</span>{% endif %}</td>
-                    <td class="timestamp">{{ d.created_at|dtfmt }}</td>
-                    <td>
-                      {% if d.status == 'in_transit' %}
-                        <a class="btn btn-sm btn-success" href="{{ url_for('receive', dispatch_id=d.id) }}">Mark Received</a>
-                      {% else %}-{% endif %}
-                    </td>
-                  </tr>
-                {% else %}
-                  <tr><td colspan="6">No dispatches</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="card p-3 mb-3">
-            <h5>My Personal Stock</h5>
-            <form method="POST" action="{{ url_for('personal_stock') }}" class="row g-2">
-              <div class="col-md-6"><input name="stock_name" class="form-control" placeholder="Stock name" required></div>
-              <div class="col-md-4"><input name="quantity" type="number" min="0" value="0" class="form-control" placeholder="Quantity" required></div>
-              <div class="col-md-2"><button class="btn btn-primary w-100">Add / Update</button></div>
-            </form>
-
-            <table class="table table-sm mt-2">
-              <thead class="table-light"><tr><th>Stock</th><th>Qty</th><th>When</th></tr></thead>
-              <tbody>
-                {% for p in personal_stocks %}
-                  <tr><td>{{ p.stock_name }}</td><td>{{ p.quantity }}</td><td class="timestamp">{{ p.created_at|dtfmt }}</td></tr>
-                {% else %}
-                  <tr><td colspan="3">No personal stock</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="card p-3 mb-3">
-            <h5>Log Stock Usage</h5>
-            <form method="POST" action="{{ url_for('add_usage') }}" class="row g-2">
-              <div class="col-md-6">
-                <select name="stock_name" class="form-select" required>
-                  <option value="">Select stock</option>
-                  {% for s in stocks %}<option value="{{ s.name }}">{{ s.name }}</option>{% endfor %}
-                </select>
-              </div>
-              <div class="col-md-2"><input name="quantity_used" type="number" min="1" value="1" class="form-control" required></div>
-              <div class="col-md-4"><input name="site_name" class="form-control" placeholder="Site name"></div>
-              <div class="col-12"><input name="reason" class="form-control mt-2" placeholder="Reason"></div>
-              <div class="col-6 mt-2"><input name="amc_cmc" class="form-control" placeholder="AMC/CMC (optional)"></div>
-              <div class="col-6 mt-2"><button class="btn btn-primary w-100">Add to Log</button></div>
-            </form>
-
-            <hr>
-            <h6>My Usage Logs</h6>
-            <table class="table table-sm">
-              <thead class="table-light"><tr><th>Stock</th><th>Qty</th><th>Site</th><th>Reason</th><th>When</th></tr></thead>
-              <tbody>
-                {% for u in usage_logs %}
-                  <tr><td>{{ u.stock_name }}</td><td>{{ u.quantity_used }}</td><td>{{ u.site_name }}</td><td>{{ u.reason }}</td><td class="timestamp">{{ u.created_at|dtfmt }}</td></tr>
-                {% else %}
-                  <tr><td colspan="5">No logs</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    {% endif %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3">
+  <a class="navbar-brand" href="#">PT Inventory</a>
+  <div class="ms-auto text-light">
+    Hi, {{ session.get('username') or '' }}
+    <a href="{{ url_for('logout') }}" class="btn btn-sm btn-secondary ms-3">Logout</a>
   </div>
+</nav>
 
-  <!-- Edit stock modal -->
-  <div class="modal fade" id="editStockModal" tabindex="-1">
-    <div class="modal-dialog">
-      <form method="POST" action="{{ url_for('edit_stock') }}" class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Edit Stock</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">
-          <input type="hidden" name="stock_id" id="edit-stock-id">
-          <div class="mb-2"><label class="form-label">Name</label><input id="edit-stock-name" name="name" class="form-control" required></div>
-          <div class="mb-2"><label class="form-label">Quantity</label><input id="edit-stock-qty" name="quantity" type="number" min="0" class="form-control" required></div>
+<div class="container py-4">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-        <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary">Save</button></div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% if role=='hod' %}
+  <!-- ================= HOD DASHBOARD ================= -->
+  <h3>Stocks</h3>
+  <button class="btn btn-success mb-2" data-bs-toggle="modal" data-bs-target="#addStockModal">Add Stock</button>
+  <table class="table table-bordered">
+    <thead><tr><th>Name</th><th>Qty</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for stock in stocks %}
+      <tr>
+        <td>{{ stock.name }}</td>
+        <td>{{ stock.quantity }}</td>
+        <td>
+          <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editStockModal{{ stock.id }}">Edit</button>
+          <form method="GET" action="{{ url_for('delete_stock', stock_id=stock.id) }}" style="display:inline;">
+            <button class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+
+      <!-- Edit Stock Modal -->
+      <div class="modal fade" id="editStockModal{{ stock.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+          <form method="POST" action="{{ url_for('edit_stock') }}">
+            <input type="hidden" name="stock_id" value="{{ stock.id }}">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">Edit Stock</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <div class="mb-2"><label>Name</label><input type="text" name="name" class="form-control" value="{{ stock.name }}" required></div>
+                <div class="mb-2"><label>Quantity</label><input type="number" name="quantity" class="form-control" value="{{ stock.quantity }}" required></div>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Add Stock Modal -->
+  <div class="modal fade" id="addStockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form method="POST" action="{{ url_for('add_stock') }}">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title">Add Stock</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <div class="mb-2"><label>Name</label><input type="text" name="name" class="form-control" required></div>
+            <div class="mb-2"><label>Quantity</label><input type="number" name="quantity" class="form-control" required></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary">Save</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </div>
       </form>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    // attach click listeners to Edit buttons to populate modal
-    document.querySelectorAll('.js-edit-stock').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.id;
-        const name = btn.dataset.name;
-        const qty = btn.dataset.qty;
-        document.getElementById('edit-stock-id').value = id;
-        document.getElementById('edit-stock-name').value = name;
-        document.getElementById('edit-stock-qty').value = qty;
-        const modal = new bootstrap.Modal(document.getElementById('editStockModal'));
-        modal.show();
-      });
-    });
-  </script>
+  <h3>Engineers</h3>
+  <button class="btn btn-success mb-2" data-bs-toggle="modal" data-bs-target="#addEngineerModal">Add Engineer</button>
+  <table class="table table-bordered">
+    <thead><tr><th>Username</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for eng in engineers %}
+      <tr>
+        <td>{{ eng.username }}</td>
+        <td>
+          {% if eng.role!='hod' %}
+          <a href="{{ url_for('delete_engineer', user_id=eng.id) }}" class="btn btn-sm btn-danger">Delete</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Add Engineer Modal -->
+  <div class="modal fade" id="addEngineerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form method="POST" action="{{ url_for('add_engineer') }}">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title">Add Engineer</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <div class="mb-2"><label>Username</label><input type="text" name="username" class="form-control" required></div>
+            <div class="mb-2"><label>Password</label><input type="password" name="password" class="form-control" required></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary">Save</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <h3>Dispatches</h3>
+  <table class="table table-bordered">
+    <thead><tr><th>Stock</th><th>Engineer</th><th>Docket</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for d in dispatches %}
+      <tr>
+        <td>{{ d.stock.name }}</td>
+        <td>{{ d.engineer.username }}</td>
+        <td>{{ d.docket_number }}</td>
+        <td>{{ d.status }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Emergency Requests</h3>
+  <table class="table table-bordered">
+    <thead><tr><th>Engineer</th><th>Item</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for e in emergencies %}
+      <tr>
+        <td>{{ e.engineer.username }}</td>
+        <td>{{ e.item_name }}</td>
+        <td>{{ e.status }}</td>
+        <td>
+          {% if e.status=='pending' %}
+          <a href="{{ url_for('update_emergency', req_id=e.id, action='approve') }}" class="btn btn-sm btn-success">Approve</a>
+          <a href="{{ url_for('update_emergency', req_id=e.id, action='reject') }}" class="btn btn-sm btn-danger">Reject</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Usage Logs</h3>
+  <table class="table table-bordered">
+    <thead><tr><th>Engineer</th><th>Stock</th><th>Qty Used</th><th>Site</th><th>Reason</th><th>AMC/CMC</th></tr></thead>
+    <tbody>
+      {% for u in usage_logs %}
+      <tr>
+        <td>{{ u.engineer.username }}</td>
+        <td>{{ u.stock_name }}</td>
+        <td>{{ u.quantity_used }}</td>
+        <td>{{ u.site_name }}</td>
+        <td>{{ u.reason }}</td>
+        <td>{{ u.amc_cmc }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% elif role=='engineer' %}
+  <!-- ================= ENGINEER DASHBOARD ================= -->
+  <h3>My Dispatches</h3>
+  <table class="table table-bordered">
+    <thead><tr><th>Stock</th><th>Docket</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for d in dispatches %}
+      <tr>
+        <td>{{ d.stock.name }}</td>
+        <td>{{ d.docket_number }}</td>
+        <td>{{ d.status }}</td>
+        <td>
+          {% if d.status=='in_transit' %}
+          <a href="{{ url_for('receive', dispatch_id=d.id) }}" class="btn btn-sm btn-success">Mark Received</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Emergency / Requests</h3>
+  <button class="btn btn-primary mb-2" data-bs-toggle="modal" data-bs-target="#newEmergencyModal">New Request</button>
+  <table class="table table-bordered">
+    <thead><tr><th>Item</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for e in emergencies %}
+      <tr><td>{{ e.item_name }}</td><td>{{ e.status }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- New Emergency Modal -->
+  <div class="modal fade" id="newEmergencyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form method="POST" action="{{ url_for('emergency') }}">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title">Emergency / Stock Request</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <div class="mb-2"><label>Item Name</label><input type="text" name="item_name" class="form-control" required></div>
+          </div>
+          <div class="modal-footer"><button class="btn btn-primary">Submit</button><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button></div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <h3>My Personal Stock</h3>
+  <button class="btn btn-success mb-2" data-bs-toggle="modal" data-bs-target="#personalStockModal">Add / Update Stock</button>
+  <table class="table table-bordered">
+    <thead><tr><th>Stock</th><th>Quantity</th></tr></thead>
+    <tbody>
+      {% for p in personal_stocks %}
+      <tr><td>{{ p.stock_name }}</td><td>{{ p.quantity }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Personal Stock Modal -->
+  <div class="modal fade" id="personalStockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form method="POST" action="{{ url_for('personal_stock') }}">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title">Add / Update Personal Stock</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body">
+            <div class="mb-2"><label>Stock Name</label><input type="text" name="stock_name" class="form-control" required></div>
+            <div class="mb-2"><label>Quantity</label><input type="number" name="quantity" class="form-control" required></div>
+          </div>
+          <div class="modal-footer"><button class="btn btn-primary">Save</button><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button></div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
