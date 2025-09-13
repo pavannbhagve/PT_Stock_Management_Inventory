@@ -1,469 +1,265 @@
-# app.py
 import os
 from datetime import datetime
-from functools import wraps
-
-from flask import (
-    Flask,
-    render_template,
-    request,
-    redirect,
-    url_for,
-    session,
-    flash,
-    jsonify,
-)
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import func
 
-# Config
-app = Flask(__name__, template_folder="templates")
-app.secret_key = os.environ.get("SECRET_KEY", "change_this_secret_in_prod")
+# ----------------------------
+# Flask Setup
+# ----------------------------
+app = Flask(__name__)
+app.secret_key = "supersecretkey"
 
-# DATABASE_URL environment variable expected (Render provides it)
+# Database Config
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
-    raise RuntimeError("Please set DATABASE_URL environment variable (Postgres URL).")
+    raise RuntimeError("Please set DATABASE_URL environment variable for PostgreSQL.")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
+# ----------------------------
+# Database Models
+# ----------------------------
 
-# Models
-class User(db.Model):
-    __tablename__ = "users"
+class Engineer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(120), unique=True, nullable=False)  # login name
-    full_name = db.Column(db.String(255), nullable=True)
-    password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # 'hod' or 'engineer'
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
 
 
 class Stock(db.Model):
-    __tablename__ = "stocks"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), nullable=False, unique=True)
-    quantity = db.Column(db.Integer, default=0, nullable=False)
-    is_emergency = db.Column(db.Boolean, default=False)  # if item marked emergency
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-class EngineerStock(db.Model):
-    __tablename__ = "engineer_stocks"
-    id = db.Column(db.Integer, primary_key=True)
-    engineer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    stock_id = db.Column(db.Integer, db.ForeignKey("stocks.id"), nullable=False)
-    quantity = db.Column(db.Integer, default=0, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    engineer = db.relationship("User", backref="owned_stocks")
-    stock = db.relationship("Stock")
-
-
-class RequestItem(db.Model):
-    __tablename__ = "requests"
-    id = db.Column(db.Integer, primary_key=True)
-    engineer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    stock_id = db.Column(db.Integer, db.ForeignKey("stocks.id"), nullable=True)  # null for emergency text
-    emergency_text = db.Column(db.String(500), nullable=True)
-    quantity = db.Column(db.Integer, default=1, nullable=False)
-    status = db.Column(db.String(30), default="pending")  # pending / approved / in_transit / received / denied
-    docket_number = db.Column(db.String(255), nullable=True)
-    hod_comment = db.Column(db.String(500), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    engineer = db.relationship("User")
-    stock = db.relationship("Stock")
-
-
-class IssueRecord(db.Model):
-    __tablename__ = "issue_records"
-    id = db.Column(db.Integer, primary_key=True)
-    engineer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    stock_id = db.Column(db.Integer, db.ForeignKey("stocks.id"), nullable=False)
-    quantity = db.Column(db.Integer, default=1, nullable=False)
-    site_name = db.Column(db.String(255), nullable=True)
-    reason = db.Column(db.String(500), nullable=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    quantity = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    engineer = db.relationship("User")
-    stock = db.relationship("Stock")
+
+class StockRequest(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    stock_name = db.Column(db.String(100), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    remarks = db.Column(db.String(200))
+    requested_by = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(50), default="Pending")  # Pending, Approved, Denied, In Transit, Received
+    docket_number = db.Column(db.String(100))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-# Helpers
-def login_required(role=None):
-    def decorator(f):
-        @wraps(f)
-        def wrapped(*args, **kwargs):
-            if "user_id" not in session:
-                return redirect(url_for("login"))
-            if role and session.get("role") != role:
-                flash("Unauthorized.", "danger")
-                return redirect(url_for("login"))
-            return f(*args, **kwargs)
-
-        return wrapped
-
-    return decorator
+class UrgentStockRequest(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    stock_name = db.Column(db.String(100), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    remarks = db.Column(db.String(200))
+    requested_by = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(50), default="Pending")
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class StockUsage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    engineer = db.Column(db.String(50), nullable=False)
+    stock_name = db.Column(db.String(100), nullable=False)
+    quantity_used = db.Column(db.Integer, nullable=False)
+    site_name = db.Column(db.String(100))
+    reason = db.Column(db.String(200))
+    amc_cmc = db.Column(db.String(50))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+# ----------------------------
+# Utility
+# ----------------------------
+def is_hod():
+    return "hod" in session and session["hod"] is True
+
+def is_engineer():
+    return "engineer" in session
+
+# ----------------------------
 # Routes
-@app.route("/")
-def index():
-    if "user_id" in session:
-        if session.get("role") == "hod":
-            return redirect(url_for("hod_dashboard"))
-        return redirect(url_for("engineer_dashboard"))
-    return redirect(url_for("login"))
-
-
-@app.route("/login", methods=["GET", "POST"])
+# ----------------------------
+@app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "")
-        user = User.query.filter(func.lower(User.username) == username.lower()).first()
-        if user and user.check_password(password):
-            session["user_id"] = user.id
-            session["username"] = user.username
-            session["role"] = user.role
-            session["full_name"] = user.full_name
-            flash("Logged in successfully.", "success")
-            return redirect(url_for("index"))
-        flash("Invalid credentials.", "danger")
-    return render_template("main.html")
+        username = request.form["username"]
+        password = request.form["password"]
 
+        # HOD login fixed
+        if username == "PTESPL" and password == "ptespl@123":
+            session.clear()
+            session["hod"] = True
+            return redirect(url_for("dashboard"))
+
+        # Engineer login
+        engineer = Engineer.query.filter_by(username=username).first()
+        if engineer and check_password_hash(engineer.password, password):
+            session.clear()
+            session["engineer"] = username
+            return redirect(url_for("dashboard"))
+
+        flash("Invalid credentials", "danger")
+    return render_template("main.html", page="login")
+
+
+@app.route("/dashboard")
+def dashboard():
+    if is_hod():
+        engineers = Engineer.query.all()
+        stocks = Stock.query.all()
+        requests = StockRequest.query.order_by(StockRequest.timestamp.desc()).all()
+        urgent_requests = UrgentStockRequest.query.order_by(UrgentStockRequest.timestamp.desc()).all()
+        usages = StockUsage.query.order_by(StockUsage.timestamp.desc()).all()
+        return render_template("main.html", page="hod", engineers=engineers, stocks=stocks, requests=requests, urgent_requests=urgent_requests, usages=usages)
+
+    elif is_engineer():
+        username = session["engineer"]
+        stocks = Stock.query.all()
+        requests = StockRequest.query.filter_by(requested_by=username).order_by(StockRequest.timestamp.desc()).all()
+        urgent_requests = UrgentStockRequest.query.filter_by(requested_by=username).order_by(UrgentStockRequest.timestamp.desc()).all()
+        usages = StockUsage.query.filter_by(engineer=username).order_by(StockUsage.timestamp.desc()).all()
+        return render_template("main.html", page="engineer", username=username, stocks=stocks, requests=requests, urgent_requests=urgent_requests, usages=usages)
+
+    return redirect(url_for("login"))
 
 @app.route("/logout")
 def logout():
     session.clear()
-    flash("Logged out.", "info")
     return redirect(url_for("login"))
 
+# ----------------------------
+# HOD Routes
+# ----------------------------
+@app.route("/add_engineer", methods=["POST"])
+def add_engineer():
+    if not is_hod():
+        return redirect(url_for("login"))
 
-# HOD dashboard
-@app.route("/hod")
-@login_required(role="hod")
-def hod_dashboard():
-    stocks = Stock.query.order_by(Stock.name).all()
-    engineers = User.query.filter_by(role="engineer").order_by(User.username).all()
-    requests = RequestItem.query.order_by(RequestItem.created_at.desc()).all()
-    engineer_stocks = EngineerStock.query.order_by(EngineerStock.created_at.desc()).all()
-    issues = IssueRecord.query.order_by(IssueRecord.created_at.desc()).all()
-    return render_template(
-        "main.html",
-        hod=True,
-        stocks=stocks,
-        engineers=engineers,
-        requests=requests,
-        engineer_stocks=engineer_stocks,
-        issues=issues,
-    )
-
-
-# Engineer dashboard
-@app.route("/engineer")
-@login_required(role="engineer")
-def engineer_dashboard():
-    stocks = Stock.query.order_by(Stock.name).all()
-    my_requests = RequestItem.query.filter_by(engineer_id=session["user_id"]).order_by(RequestItem.created_at.desc()).all()
-    my_engineer_stocks = EngineerStock.query.filter_by(engineer_id=session["user_id"]).all()
-    my_issues = IssueRecord.query.filter_by(engineer_id=session["user_id"]).order_by(IssueRecord.created_at.desc()).all()
-    return render_template(
-        "main.html",
-        engineer=True,
-        stocks=stocks,
-        my_requests=my_requests,
-        my_engineer_stocks=my_engineer_stocks,
-        my_issues=my_issues,
-    )
-
-
-# HOD: Stock CRUD
-@app.route("/api/stock/add", methods=["POST"])
-@login_required(role="hod")
-def api_add_stock():
-    name = request.form.get("name", "").strip()
-    qty = int(request.form.get("quantity", 0))
-    if not name:
-        flash("Stock name required.", "danger")
-        return redirect(url_for("hod_dashboard"))
-    stock = Stock.query.filter(func.lower(Stock.name) == name.lower()).first()
-    if stock:
-        stock.quantity = qty
-    else:
-        stock = Stock(name=name, quantity=qty)
-        db.session.add(stock)
+    username = request.form["username"]
+    password = generate_password_hash(request.form["password"])
+    eng = Engineer(username=username, password=password)
+    db.session.add(eng)
     db.session.commit()
-    flash("Stock added/updated.", "success")
-    return redirect(url_for("hod_dashboard"))
+    return redirect(url_for("dashboard"))
 
-
-@app.route("/api/stock/edit/<int:stock_id>", methods=["POST"])
-@login_required(role="hod")
-def api_edit_stock(stock_id):
-    stock = Stock.query.get_or_404(stock_id)
-    name = request.form.get("name", stock.name).strip()
-    qty = int(request.form.get("quantity", stock.quantity))
-    stock.name = name
-    stock.quantity = qty
+@app.route("/delete_engineer/<int:id>")
+def delete_engineer(id):
+    if not is_hod():
+        return redirect(url_for("login"))
+    Engineer.query.filter_by(id=id).delete()
     db.session.commit()
-    flash("Stock updated.", "success")
-    return redirect(url_for("hod_dashboard"))
+    return redirect(url_for("dashboard"))
 
-
-@app.route("/api/stock/delete/<int:stock_id>", methods=["POST"])
-@login_required(role="hod")
-def api_delete_stock(stock_id):
-    stock = Stock.query.get_or_404(stock_id)
-    db.session.delete(stock)
+@app.route("/add_stock", methods=["POST"])
+def add_stock():
+    if not is_hod():
+        return redirect(url_for("login"))
+    name = request.form["name"]
+    qty = int(request.form["quantity"])
+    stock = Stock(name=name, quantity=qty)
+    db.session.add(stock)
     db.session.commit()
-    flash("Stock deleted.", "warning")
-    return redirect(url_for("hod_dashboard"))
+    return redirect(url_for("dashboard"))
 
-
-# HOD: Engineer management
-@app.route("/api/engineer/add", methods=["POST"])
-@login_required(role="hod")
-def api_add_engineer():
-    username = request.form.get("username", "").strip()
-    password = request.form.get("password", "").strip()
-    if not username or not password:
-        flash("Username & password required.", "danger")
-        return redirect(url_for("hod_dashboard"))
-    if User.query.filter(func.lower(User.username) == username.lower()).first():
-        flash("Username already exists.", "danger")
-        return redirect(url_for("hod_dashboard"))
-    user = User(
-        username=username,
-        full_name=request.form.get("full_name", ""),
-        password_hash=generate_password_hash(password),
-        role="engineer",
-    )
-    db.session.add(user)
+@app.route("/update_stock/<int:id>", methods=["POST"])
+def update_stock(id):
+    if not is_hod():
+        return redirect(url_for("login"))
+    stock = Stock.query.get(id)
+    stock.name = request.form["name"]
+    stock.quantity = int(request.form["quantity"])
     db.session.commit()
-    flash("Engineer created.", "success")
-    return redirect(url_for("hod_dashboard"))
+    return redirect(url_for("dashboard"))
 
-
-@app.route("/api/engineer/delete/<int:user_id>", methods=["POST"])
-@login_required(role="hod")
-def api_delete_engineer(user_id):
-    user = User.query.get_or_404(user_id)
-    if user.role != "engineer":
-        flash("Invalid user.", "danger")
-        return redirect(url_for("hod_dashboard"))
-    db.session.delete(user)
+@app.route("/delete_stock/<int:id>")
+def delete_stock(id):
+    if not is_hod():
+        return redirect(url_for("login"))
+    Stock.query.filter_by(id=id).delete()
     db.session.commit()
-    flash("Engineer deleted.", "warning")
-    return redirect(url_for("hod_dashboard"))
+    return redirect(url_for("dashboard"))
 
+@app.route("/update_request_status/<int:id>", methods=["POST"])
+def update_request_status(id):
+    if not is_hod():
+        return redirect(url_for("login"))
+    req = StockRequest.query.get(id)
+    req.status = request.form["status"]
+    req.docket_number = request.form.get("docket_number")
+    db.session.commit()
+    return redirect(url_for("dashboard"))
 
-# Engineer: Create request (normal or urgent)
-@app.route("/api/request/create", methods=["POST"])
-@login_required(role="engineer")
-def api_create_request():
-    stock_id = request.form.get("stock_id") or None
-    emergency_text = request.form.get("emergency_text", "").strip() or None
-    qty = int(request.form.get("quantity", 1))
-    # If normal stock chosen, ensure HOD has enough quantity
-    if stock_id:
-        stock = Stock.query.get(int(stock_id))
-        if not stock:
-            flash("Invalid stock selected.", "danger")
-            return redirect(url_for("engineer_dashboard"))
-        if stock.quantity < qty:
-            flash("Not enough stock in HOD. Consider urgent request.", "danger")
-            return redirect(url_for("engineer_dashboard"))
-        req = RequestItem(engineer_id=session["user_id"], stock_id=stock.id, quantity=qty, status="pending")
-    else:
-        if not emergency_text:
-            flash("Provide emergency stock name or select normal stock.", "danger")
-            return redirect(url_for("engineer_dashboard"))
-        req = RequestItem(engineer_id=session["user_id"], emergency_text=emergency_text, quantity=qty, status="pending")
+@app.route("/update_urgent_status/<int:id>", methods=["POST"])
+def update_urgent_status(id):
+    if not is_hod():
+        return redirect(url_for("login"))
+    req = UrgentStockRequest.query.get(id)
+    req.status = request.form["status"]
+    db.session.commit()
+    return redirect(url_for("dashboard"))
+
+# ----------------------------
+# Engineer Routes
+# ----------------------------
+@app.route("/request_stock", methods=["POST"])
+def request_stock():
+    if not is_engineer():
+        return redirect(url_for("login"))
+    stock_name = request.form["stock_name"]
+    qty = int(request.form["quantity"])
+    remarks = request.form.get("remarks")
+    req = StockRequest(stock_name=stock_name, quantity=qty, remarks=remarks, requested_by=session["engineer"])
     db.session.add(req)
     db.session.commit()
-    flash("Request created.", "success")
-    return redirect(url_for("engineer_dashboard"))
+    return redirect(url_for("dashboard"))
 
-
-# HOD: Act on request (approve / deny / dispatch)
-@app.route("/api/request/act/<int:request_id>", methods=["POST"])
-@login_required(role="hod")
-def api_request_act(request_id):
-    req = RequestItem.query.get_or_404(request_id)
-    action = request.form.get("action")
-    comment = request.form.get("comment", "")
-    if action == "approve":
-        # reduce HOD stock if it's a normal stock
-        if req.stock_id:
-            stock = Stock.query.get(req.stock_id)
-            if stock.quantity < req.quantity:
-                flash("Not enough stock to approve.", "danger")
-                return redirect(url_for("hod_dashboard"))
-            stock.quantity -= req.quantity
-        req.status = "approved"
-        req.hod_comment = comment
-
-    elif action == "deny":
-        req.status = "denied"
-        req.hod_comment = comment
-
-    elif action == "dispatch":
-        docket = request.form.get("docket", "").strip()
-        if not docket:
-            flash("Docket number required to dispatch.", "danger")
-            return redirect(url_for("hod_dashboard"))
-        # set docket and mark in_transit
-        req.docket_number = docket
-        req.status = "in_transit"
-        req.hod_comment = comment
-
-    req.updated_at = datetime.utcnow()
+@app.route("/request_urgent", methods=["POST"])
+def request_urgent():
+    if not is_engineer():
+        return redirect(url_for("login"))
+    stock_name = request.form["stock_name"]
+    qty = int(request.form["quantity"])
+    remarks = request.form.get("remarks")
+    req = UrgentStockRequest(stock_name=stock_name, quantity=qty, remarks=remarks, requested_by=session["engineer"])
+    db.session.add(req)
     db.session.commit()
-    flash("Request updated.", "success")
-    return redirect(url_for("hod_dashboard"))
+    return redirect(url_for("dashboard"))
 
-
-# Engineer: Mark Received (when in_transit)
-@app.route("/api/request/mark_received/<int:request_id>", methods=["POST"])
-@login_required(role="engineer")
-def api_mark_received(request_id):
-    req = RequestItem.query.get_or_404(request_id)
-    if req.engineer_id != session["user_id"]:
-        flash("Unauthorized.", "danger")
-        return redirect(url_for("engineer_dashboard"))
-    if req.status != "in_transit":
-        flash("Only in-transit requests can be marked received.", "danger")
-        return redirect(url_for("engineer_dashboard"))
-
-    # Add to engineer stock (create stock record if emergency)
-    if req.stock_id:
-        stock = Stock.query.get(req.stock_id)
-    else:
-        # emergency: create Stock if missing (HOD may later edit)
-        name = (req.emergency_text or "").strip()
-        stock = Stock.query.filter(func.lower(Stock.name) == name.lower()).first()
-        if not stock:
-            stock = Stock(name=name, quantity=0, is_emergency=True)
-            db.session.add(stock)
-            db.session.flush()
-
-    eng_stock = EngineerStock.query.filter_by(engineer_id=req.engineer_id, stock_id=stock.id).first()
-    if eng_stock:
-        eng_stock.quantity += req.quantity
-    else:
-        eng_stock = EngineerStock(engineer_id=req.engineer_id, stock_id=stock.id, quantity=req.quantity)
-        db.session.add(eng_stock)
-
-    req.status = "received"
-    req.updated_at = datetime.utcnow()
-    db.session.commit()
-    flash("Marked as received. Added to your personal stock.", "success")
-    return redirect(url_for("engineer_dashboard"))
-
-
-# Engineer: Cancel a pending request
-@app.route("/api/request/cancel/<int:request_id>", methods=["POST"])
-@login_required(role="engineer")
-def api_cancel_request(request_id):
-    req = RequestItem.query.get_or_404(request_id)
-    if req.engineer_id != session["user_id"]:
-        flash("Unauthorized.", "danger")
-        return redirect(url_for("engineer_dashboard"))
-    if req.status in ("pending", "denied"):
-        db.session.delete(req)
+@app.route("/mark_received/<int:id>")
+def mark_received(id):
+    if not is_engineer():
+        return redirect(url_for("login"))
+    req = StockRequest.query.get(id)
+    if req and req.requested_by == session["engineer"]:
+        req.status = "Received"
         db.session.commit()
-        flash("Request deleted.", "warning")
-    else:
-        flash("Cannot delete request in current state.", "danger")
-    return redirect(url_for("engineer_dashboard"))
+    return redirect(url_for("dashboard"))
 
+@app.route("/use_stock", methods=["POST"])
+def use_stock():
+    if not is_engineer():
+        return redirect(url_for("login"))
+    stock_name = request.form["stock_name"]
+    qty = int(request.form["quantity"])
+    site = request.form["site_name"]
+    reason = request.form["reason"]
+    amc_cmc = request.form["amc_cmc"]
 
-# Engineer: Add / Update personal stock (manual)
-@app.route("/api/engineer/stock_add", methods=["POST"])
-@login_required(role="engineer")
-def api_engineer_stock_add():
-    stock_name = request.form.get("stock_name", "").strip()
-    qty = int(request.form.get("quantity", 0))
-    if not stock_name or qty <= 0:
-        flash("Stock name and positive qty required.", "danger")
-        return redirect(url_for("engineer_dashboard"))
-    stock = Stock.query.filter(func.lower(Stock.name) == stock_name.lower()).first()
-    if not stock:
-        # allow engineer to record personal stock even if HOD hasn't created
-        stock = Stock(name=stock_name, quantity=0, is_emergency=True)
-        db.session.add(stock)
-        db.session.flush()
-    eng_stock = EngineerStock.query.filter_by(engineer_id=session["user_id"], stock_id=stock.id).first()
-    if eng_stock:
-        eng_stock.quantity = qty
-    else:
-        eng_stock = EngineerStock(engineer_id=session["user_id"], stock_id=stock.id, quantity=qty)
-        db.session.add(eng_stock)
+    usage = StockUsage(engineer=session["engineer"], stock_name=stock_name, quantity_used=qty, site_name=site, reason=reason, amc_cmc=amc_cmc)
+    db.session.add(usage)
     db.session.commit()
-    flash("Personal stock added/updated.", "success")
-    return redirect(url_for("engineer_dashboard"))
+    return redirect(url_for("dashboard"))
 
-
-# Engineer: Issue stock to site (stock usage)
-@app.route("/api/issue/add", methods=["POST"])
-@login_required(role="engineer")
-def api_issue_add():
-    stock_id = int(request.form.get("stock_id", 0))
-    qty = int(request.form.get("quantity", 0))
-    site = request.form.get("site_name", "").strip()
-    reason = request.form.get("reason", "").strip()
-    if qty <= 0:
-        flash("Quantity should be > 0.", "danger")
-        return redirect(url_for("engineer_dashboard"))
-    eng_stock = EngineerStock.query.filter_by(engineer_id=session["user_id"], stock_id=stock_id).first()
-    if not eng_stock or eng_stock.quantity < qty:
-        flash("Not enough personal stock.", "danger")
-        return redirect(url_for("engineer_dashboard"))
-    eng_stock.quantity -= qty
-    issue = IssueRecord(engineer_id=session["user_id"], stock_id=stock_id, quantity=qty, site_name=site, reason=reason)
-    db.session.add(issue)
-    db.session.commit()
-    flash("Stock issued (logged).", "success")
-    return redirect(url_for("engineer_dashboard"))
-
-
-# Utility: JSON stocks (for client-side dropdown)
-@app.route("/api/stocks")
-@login_required()
-def api_stocks():
-    stocks = Stock.query.order_by(Stock.name).all()
-    return jsonify([{"id": s.id, "name": s.name, "quantity": s.quantity} for s in stocks])
-
-
-# Startup: create tables and seed default HOD if missing
+# ----------------------------
+# Initialize DB
+# ----------------------------
 with app.app_context():
     db.create_all()
-    hod = User.query.filter_by(role="hod").first()
-    if not hod:
-        hod_user = User(
-            username="PTESPL",
-            full_name="HOD - PTESPL",
-            password_hash=generate_password_hash("ptespl@123"),
-            role="hod",
-        )
-        db.session.add(hod_user)
-        db.session.commit()
-        app.logger.info("Seeded HOD user: PTESPL")
 
-
-# Run (for local dev; gunicorn will import app)
+# ----------------------------
+# Run
+# ----------------------------
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(debug=True)
