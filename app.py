@@ -2,71 +2,77 @@ import os
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 
-# Flask setup
+# -------------------
+# App Setup
+# -------------------
 app = Flask(__name__)
-app.secret_key = "supersecret"
+app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey")
 
-# PostgreSQL connection (Render)
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-    "DATABASE_URL", "sqlite:///stock.db"
-).replace("postgres://", "postgresql://")
+# Render uses DATABASE_URL for PostgreSQL
+db_url = os.environ.get("DATABASE_URL")
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url or "sqlite:///inventory.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 db = SQLAlchemy(app)
 
-# ------------------
-# Models
-# ------------------
+# -------------------
+# Database Models
+# -------------------
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False)
-    password = db.Column(db.String(50), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # HOD / Engineer
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(200), nullable=False)
+    role = db.Column(db.String(20), nullable=False)  # HOD or Engineer
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
 
 class Stock(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     item_name = db.Column(db.String(100), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
-    description = db.Column(db.String(200))
-    location = db.Column(db.String(100))
+    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-class Request(db.Model):
+class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    engineer_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    action = db.Column(db.String(50))  # "received" or "sent"
     item_name = db.Column(db.String(100))
     quantity = db.Column(db.Integer)
-    status = db.Column(db.String(20), default="Pending")  # Pending/Approved/Rejected
-    docket_number = db.Column(db.String(100))
+    performed_by = db.Column(db.String(80))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-class Log(db.Model):
+class CourierDocket(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user = db.Column(db.String(50))
-    action = db.Column(db.String(200))
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    docket_number = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-# ------------------
+# -------------------
 # Routes
-# ------------------
+# -------------------
 @app.route("/")
 def home():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
     user = User.query.get(session["user_id"])
-    if user.role == "HOD":
-        stocks = Stock.query.all()
-        requests = Request.query.all()
-        logs = Log.query.order_by(Log.timestamp.desc()).all()
-        return render_template("main.html", user=user, stocks=stocks, requests=requests, logs=logs)
-    else:
-        stocks = Stock.query.all()
-        requests = Request.query.filter_by(engineer_id=user.id).all()
-        return render_template("main.html", user=user, stocks=stocks, requests=requests)
+    if not user:
+        session.clear()
+        return redirect(url_for("login"))
+
+    dockets = CourierDocket.query.all()
+    return render_template("main.html", user=user, dockets=dockets)
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -75,35 +81,13 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        # Hardcoded HOD
-        if username == "PTESPL" and password == "ptespl@123":
-            session["user_id"] = 0
-            session["role"] = "HOD"
-            return redirect(url_for("home"))
-
-        user = User.query.filter_by(username=username, password=password).first()
-        if user:
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
             session["user_id"] = user.id
-            session["role"] = user.role
             return redirect(url_for("home"))
-
-        flash("Invalid credentials!")
-    return render_template("main.html", login=True)
-
-
-@app.route("/register", methods=["POST"])
-def register():
-    username = request.form["username"]
-    password = request.form["password"]
-
-    if User.query.filter_by(username=username).first():
-        flash("Username already exists")
-    else:
-        new_user = User(username=username, password=password, role="Engineer")
-        db.session.add(new_user)
-        db.session.commit()
-        flash("Engineer registered successfully!")
-    return redirect(url_for("login"))
+        else:
+            flash("Invalid username or password")
+    return render_template("login.html")
 
 
 @app.route("/logout")
@@ -112,119 +96,107 @@ def logout():
     return redirect(url_for("login"))
 
 
-# ------------------
-# Stock CRUD (HOD)
-# ------------------
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        role = request.form["role"]
+
+        if User.query.filter_by(username=username).first():
+            flash("Username already exists")
+            return redirect(url_for("register"))
+
+        user = User(username=username, role=role)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        flash("User registered successfully")
+        return redirect(url_for("login"))
+
+    return render_template("register.html")
+
+
 @app.route("/add_stock", methods=["POST"])
 def add_stock():
-    if session.get("role") != "HOD":
-        return redirect(url_for("home"))
+    if "user_id" not in session:
+        return redirect(url_for("login"))
 
-    item = Stock(
-        item_name=request.form["item_name"],
-        quantity=int(request.form["quantity"]),
-        description=request.form["description"],
-        location=request.form["location"],
-    )
-    db.session.add(item)
-    db.session.add(Log(user="HOD", action=f"Added stock {item.item_name} ({item.quantity})"))
-    db.session.commit()
-    return redirect(url_for("home"))
+    item_name = request.form["item_name"]
+    quantity = int(request.form["quantity"])
 
-
-@app.route("/update_stock/<int:stock_id>", methods=["POST"])
-def update_stock(stock_id):
-    if session.get("role") != "HOD":
-        return redirect(url_for("home"))
-
-    stock = Stock.query.get(stock_id)
-    stock.item_name = request.form["item_name"]
-    stock.quantity = int(request.form["quantity"])
-    stock.description = request.form["description"]
-    stock.location = request.form["location"]
-    db.session.add(Log(user="HOD", action=f"Updated stock {stock.item_name}"))
-    db.session.commit()
-    return redirect(url_for("home"))
-
-
-@app.route("/delete_stock/<int:stock_id>")
-def delete_stock(stock_id):
-    if session.get("role") != "HOD":
-        return redirect(url_for("home"))
-
-    stock = Stock.query.get(stock_id)
-    db.session.delete(stock)
-    db.session.add(Log(user="HOD", action=f"Deleted stock {stock.item_name}"))
-    db.session.commit()
-    return redirect(url_for("home"))
-
-
-# ------------------
-# Request Workflow
-# ------------------
-@app.route("/request_stock", methods=["POST"])
-def request_stock():
-    if session.get("role") != "Engineer":
-        return redirect(url_for("home"))
+    stock = Stock.query.filter_by(item_name=item_name).first()
+    if stock:
+        stock.quantity += quantity
+        stock.last_updated = datetime.utcnow()
+    else:
+        stock = Stock(item_name=item_name, quantity=quantity)
+        db.session.add(stock)
 
     user = User.query.get(session["user_id"])
-    req = Request(
-        engineer_id=user.id,
-        item_name=request.form["item_name"],
-        quantity=int(request.form["quantity"]),
+    transaction = Transaction(
+        action="received", item_name=item_name, quantity=quantity, performed_by=user.username
     )
-    db.session.add(req)
-    db.session.add(Log(user=user.username, action=f"Requested {req.quantity} of {req.item_name}"))
+    db.session.add(transaction)
     db.session.commit()
+
+    flash("Stock added successfully")
     return redirect(url_for("home"))
 
 
-@app.route("/approve_request/<int:req_id>", methods=["POST"])
-def approve_request(req_id):
-    if session.get("role") != "HOD":
-        return redirect(url_for("home"))
+@app.route("/send_stock", methods=["POST"])
+def send_stock():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
 
-    req = Request.query.get(req_id)
-    stock = Stock.query.filter_by(item_name=req.item_name).first()
+    item_name = request.form["item_name"]
+    quantity = int(request.form["quantity"])
 
-    if stock and stock.quantity >= req.quantity:
-        stock.quantity -= req.quantity
-        req.status = "Approved"
-        req.docket_number = request.form["docket_number"]
-        db.session.add(Log(user="HOD", action=f"Approved {req.quantity} {req.item_name}, docket {req.docket_number}"))
+    stock = Stock.query.filter_by(item_name=item_name).first()
+    if stock and stock.quantity >= quantity:
+        stock.quantity -= quantity
+        stock.last_updated = datetime.utcnow()
+
+        user = User.query.get(session["user_id"])
+        transaction = Transaction(
+            action="sent", item_name=item_name, quantity=quantity, performed_by=user.username
+        )
+        db.session.add(transaction)
+        db.session.commit()
+        flash("Stock sent successfully")
     else:
-        req.status = "Rejected"
-        db.session.add(Log(user="HOD", action=f"Rejected request for {req.item_name}"))
+        flash("Not enough stock available")
 
-    db.session.commit()
     return redirect(url_for("home"))
 
 
-@app.route("/reject_request/<int:req_id>")
-def reject_request(req_id):
-    if session.get("role") != "HOD":
+@app.route("/add_docket", methods=["POST"])
+def add_docket():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    user = User.query.get(session["user_id"])
+    if user.role != "HOD":
+        flash("Only HOD can add courier dockets")
         return redirect(url_for("home"))
 
-    req = Request.query.get(req_id)
-    req.status = "Rejected"
-    db.session.add(Log(user="HOD", action=f"Rejected request for {req.item_name}"))
+    docket_number = request.form["docket_number"]
+    docket = CourierDocket(docket_number=docket_number)
+    db.session.add(docket)
     db.session.commit()
+    flash("Docket added successfully")
     return redirect(url_for("home"))
 
 
-# ------------------
-# DB Init
-# ------------------
+# -------------------
+# Initialize Database
+# -------------------
 with app.app_context():
     db.create_all()
 
-    # Ensure default HOD exists
-    from werkzeug.security import generate_password_hash
-    if not User.query.filter_by(username="PTESPL").first():
-        hod = User(username="PTESPL", password=generate_password_hash("ptespl@123"), role="HOD")
-        db.session.add(hod)
-        db.session.commit()
 
-
+# -------------------
+# Run App
+# -------------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
