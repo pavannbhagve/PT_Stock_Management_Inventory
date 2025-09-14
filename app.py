@@ -215,9 +215,15 @@ def reject_request(req_id):
 # ------------------
 # DB Init
 # ------------------
-@app.before_first_request
-def create_tables():
+with app.app_context():
     db.create_all()
+
+    # Ensure default HOD exists
+    from werkzeug.security import generate_password_hash
+    if not User.query.filter_by(username="PTESPL").first():
+        hod = User(username="PTESPL", password=generate_password_hash("ptespl@123"), role="HOD")
+        db.session.add(hod)
+        db.session.commit()
 
 
 if __name__ == "__main__":
