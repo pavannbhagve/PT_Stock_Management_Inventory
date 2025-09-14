@@ -10,8 +10,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
-# SQLite database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///inventory.db'
+# Database (SQLite for local / PostgreSQL for Render if set in env)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite:///inventory.db").replace("postgres://", "postgresql://")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -40,6 +40,8 @@ class RequestStock(db.Model):
     courier_docket = db.Column(db.String(100))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
+    stock = db.relationship("Stock", backref="requests")
+
 class OperationLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user = db.Column(db.String(50))
@@ -51,10 +53,11 @@ class OperationLog(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 # -------------------
-# Initialize DB and create default HOD
+# Initialize DB and default HOD
 # -------------------
 with app.app_context():
     db.create_all()
+    # Create default HOD
     hod = User.query.filter_by(username="PTESPL").first()
     if not hod:
         hod = User(username="PTESPL", password=generate_password_hash("ptespl@123"), role="HOD")
@@ -73,7 +76,7 @@ def index():
             requests = RequestStock.query.all()
             logs = OperationLog.query.order_by(OperationLog.timestamp.desc()).all()
             return render_template("main.html", user=user, stocks=stocks, requests=requests, logs=logs)
-        else:
+        else:  # Engineer
             stocks = Stock.query.all()
             requests = RequestStock.query.filter_by(engineer_id=user.id).all()
             return render_template("main.html", user=user, stocks=stocks, requests=requests)
@@ -135,33 +138,6 @@ def add_stock():
     return redirect(url_for('index'))
 
 # -------------------
-# Update Stock (HOD only)
-# -------------------
-@app.route('/update_stock/<int:stock_id>', methods=['POST'])
-def update_stock(stock_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    user = User.query.get(session['user_id'])
-    if user.role != 'HOD':
-        flash("Unauthorized", "danger")
-        return redirect(url_for('index'))
-
-    stock = Stock.query.get(stock_id)
-    stock.name = request.form['name']
-    stock.quantity = int(request.form['quantity'])
-    stock.description = request.form['description']
-    stock.location = request.form['location']
-    db.session.commit()
-
-    # Log operation
-    log = OperationLog(user=user.username, action="Updated stock", stock_name=stock.name, quantity=stock.quantity, location=stock.location)
-    db.session.add(log)
-    db.session.commit()
-
-    flash(f"Stock '{stock.name}' updated successfully", "success")
-    return redirect(url_for('index'))
-
-# -------------------
 # Delete Stock (HOD only)
 # -------------------
 @app.route('/delete_stock/<int:stock_id>', methods=['POST'])
@@ -199,11 +175,11 @@ def request_stock(stock_id):
         flash("Requested quantity exceeds available stock", "danger")
         return redirect(url_for('index'))
 
-    request_stock = RequestStock(engineer_id=user.id, stock_id=stock.id, quantity=quantity)
-    db.session.add(request_stock)
+    req = RequestStock(engineer_id=user.id, stock_id=stock.id, quantity=quantity)
+    db.session.add(req)
     db.session.commit()
 
-    # Log operation
+    # Log
     log = OperationLog(user=user.username, action="Requested stock", stock_name=stock.name, quantity=quantity)
     db.session.add(log)
     db.session.commit()
@@ -212,7 +188,7 @@ def request_stock(stock_id):
     return redirect(url_for('index'))
 
 # -------------------
-# HOD Approve/Reject Request & Send Courier
+# HOD Process Request
 # -------------------
 @app.route('/process_request/<int:req_id>', methods=['POST'])
 def process_request(req_id):
@@ -225,27 +201,29 @@ def process_request(req_id):
 
     req = RequestStock.query.get(req_id)
     action = request.form['action']
-    courier_docket = request.form.get('courier_docket', None)
+    courier_docket = request.form.get('courier_docket')
 
     if action == 'Approve':
         if req.quantity > req.stock.quantity:
             flash("Not enough stock to approve", "danger")
             return redirect(url_for('index'))
+
         req.status = 'Approved'
         req.courier_docket = courier_docket
         req.stock.quantity -= req.quantity
         db.session.commit()
 
-        # Log operation
-        log = OperationLog(user=user.username, action="Approved stock request", stock_name=req.stock.name, quantity=req.quantity, courier_docket=courier_docket)
+        log = OperationLog(user=user.username, action="Approved request", stock_name=req.stock.name,
+                           quantity=req.quantity, courier_docket=courier_docket)
         db.session.add(log)
         db.session.commit()
+
     elif action == 'Reject':
         req.status = 'Rejected'
         db.session.commit()
 
-        # Log operation
-        log = OperationLog(user=user.username, action="Rejected stock request", stock_name=req.stock.name, quantity=req.quantity)
+        log = OperationLog(user=user.username, action="Rejected request", stock_name=req.stock.name,
+                           quantity=req.quantity)
         db.session.add(log)
         db.session.commit()
 
@@ -253,9 +231,7 @@ def process_request(req_id):
     return redirect(url_for('index'))
 
 # -------------------
-# Run App
+# Run
 # -------------------
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Use Render PORT or default 5000
-    app.run(host="0.0.0.0", port=port)
     app.run(debug=True)
