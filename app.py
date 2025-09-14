@@ -87,7 +87,7 @@ def login():
             return redirect(url_for("home"))
         else:
             flash("Invalid username or password")
-    return render_template("login.html")
+    return render_template("main.html")
 
 
 @app.route("/logout")
